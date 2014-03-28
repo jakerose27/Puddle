@@ -102,7 +102,7 @@ namespace Puddle
             if (hydration + hydrationRegen <= maxHydration)
                 hydration += hydrationRegen;
 
-            Move(controls, physics);
+            Move(controls, physics, gameTime);
 
             Puddle(controls);
 
@@ -117,8 +117,9 @@ namespace Puddle
             Animate(controls, physics, gameTime);
         }
 
-        private void Move(Controls controls, Physics physics)
+        private void Move(Controls controls, Physics physics, GameTime gameTime)
         {
+            float scrolly = 0;
             // Sideways Acceleration
             if (controls.onPress(Keys.Right, Buttons.DPadRight))
                 x_accel += speed;
@@ -128,6 +129,7 @@ namespace Puddle
                 x_accel -= speed;
             else if (controls.onRelease(Keys.Left, Buttons.DPadLeft))
                 x_accel += speed;
+
 
             // Sideways Movement
             double playerFriction = pushing ? (friction * 3) : friction;

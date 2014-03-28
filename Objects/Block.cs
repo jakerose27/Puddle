@@ -62,6 +62,8 @@ namespace Puddle
                 frameIndex = 96;
         }
 
+        //public Block(Squared.Tiled.Object obj)
+        //    : base(obj.X, obj.Y, 32, 32)
         public Block(TmxObjectGroup.TmxObject obj)
             : base(obj.X, obj.Y, 32, 32)
         {

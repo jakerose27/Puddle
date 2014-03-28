@@ -17,6 +17,8 @@ namespace Puddle
         public string name;
 
         // TODO: add in function passing for individual button actions
+        //public Button(Squared.Tiled.Object obj) :
+        //    base(obj.X, obj.Y, 32, 32)
         public Button(TmxObjectGroup.TmxObject obj) :
             base(obj.X, obj.Y, 32, 32)
         {

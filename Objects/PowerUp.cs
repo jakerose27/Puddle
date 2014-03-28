@@ -15,6 +15,8 @@ namespace Puddle
 
         public string name;
 
+        //public PowerUp(Squared.Tiled.Object obj) :
+        //    base(obj.X, obj.Y, 32, 32)
         public PowerUp(TmxObjectGroup.TmxObject obj) :
             base(obj.X, obj.Y, 32, 32)
         {
