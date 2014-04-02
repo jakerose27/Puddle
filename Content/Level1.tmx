@@ -991,7 +991,7 @@
    <tile gid="281"/>
    <tile gid="281"/>
    <tile gid="281"/>
-   <tile gid="281"/>
+   <tile gid="0"/>
    <tile gid="281"/>
    <tile gid="281"/>
    <tile gid="2"/>
@@ -1127,29 +1127,6 @@
     <property name="right" value="False"/>
    </properties>
   </object>
- </objectgroup>
- <objectgroup name="Items" width="22" height="24">
-  <object name="Button 1" type="Puddle.Button" x="160" y="416" width="32" height="32">
-   <properties>
-    <property name="direction" value="right"/>
-   </properties>
-  </object>
-  <object name="Button 2" type="Puddle.Button" x="32" y="416" width="32" height="32">
-   <properties>
-    <property name="direction" value="left"/>
-   </properties>
-  </object>
-  <object name="Cannon" type="Puddle.Cannon" x="64" y="352" width="64" height="32">
-   <properties>
-    <property name="direction" value="right"/>
-   </properties>
-  </object>
-  <object name="Button 3" type="Puddle.Button" x="448" y="448" width="32" height="32">
-   <properties>
-    <property name="direction" value="left"/>
-   </properties>
-  </object>
-  <object name="Jetpack" type="Puddle.PowerUp" x="64" y="320" width="32" height="32"/>
  </objectgroup>
  <objectgroup name="Ground" width="22" height="24">
   <object name="Ground" type="Puddle.Block" x="32" y="704" width="32" height="32"/>
@@ -1291,7 +1268,6 @@
   <object name="Ground" type="Puddle.Block" x="384" y="704" width="32" height="32"/>
   <object name="Ground" type="Puddle.Block" x="192" y="416" width="32" height="32"/>
   <object name="Ground" type="Puddle.Block" x="224" y="416" width="32" height="32"/>
-  <object name="Ground" type="Puddle.Block" x="192" y="576" width="32" height="32"/>
   <object name="Ground" type="Puddle.Block" x="416" y="416" width="32" height="32"/>
   <object name="Ground" type="Puddle.Block" x="416" y="448" width="32" height="32"/>
   <object name="Ground" type="Puddle.Block" x="416" y="480" width="32" height="32"/>
@@ -1347,6 +1323,35 @@
   <object name="Ground" type="Puddle.Block" x="160" y="0" width="32" height="32"/>
   <object name="Ground" type="Puddle.Block" x="96" y="0" width="32" height="32"/>
   <object name="Ground" type="Puddle.Block" x="32" y="0" width="32" height="32"/>
-  <object name="Ground" type="Puddle.Block" x="320" y="288" width="32" height="32"/>
+ </objectgroup>
+ <objectgroup name="Items" width="22" height="24">
+  <object name="Button 1" type="Puddle.Button" x="160" y="416" width="32" height="32">
+   <properties>
+    <property name="direction" value="right"/>
+   </properties>
+  </object>
+  <object name="Button 2" type="Puddle.Button" x="32" y="416" width="32" height="32">
+   <properties>
+    <property name="direction" value="left"/>
+   </properties>
+  </object>
+  <object name="Cannon" type="Puddle.Cannon" x="64" y="352" width="64" height="32">
+   <properties>
+    <property name="direction" value="right"/>
+   </properties>
+  </object>
+  <object name="Button 3" type="Puddle.Button" x="448" y="448" width="32" height="32">
+   <properties>
+    <property name="direction" value="left"/>
+   </properties>
+  </object>
+  <object name="Jetpack" type="Puddle.PowerUp" x="64" y="320" width="32" height="32"/>
+  <object name="Button 10" type="Puddle.Button" x="160" y="576" width="32" height="32">
+   <properties>
+    <property name="direction" value="up"/>
+    <property name="hold" value="True"/>
+   </properties>
+  </object>
+  <object name="Ground" type="Puddle.Block" x="160" y="608" width="32" height="32"/>
  </objectgroup>
 </map>

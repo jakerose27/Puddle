@@ -71,6 +71,8 @@ namespace Puddle
             this.pushRight = (obj.Properties.ContainsKey("right")) ? Boolean.Parse(obj.Properties["right"]) : false;
             this.gravity = (obj.Properties.ContainsKey("gravity")) ? Boolean.Parse(obj.Properties["gravity"]) : false;
 
+            this.layerDepth = 0;
+
             this.blockType = "push";
             this.name = obj.Name;
 
@@ -220,7 +222,7 @@ namespace Puddle
                 0,
                 new Vector2(16, 16),
                 SpriteEffects.None,
-                0
+                1.0f
             );
 
         }

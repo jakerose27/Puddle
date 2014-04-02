@@ -130,7 +130,6 @@ namespace Puddle
 
         protected override void Draw(GameTime gameTime)
         {
-
             spriteBatch.Begin();
 
             if (newMapLoad)

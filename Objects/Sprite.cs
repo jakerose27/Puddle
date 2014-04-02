@@ -16,11 +16,14 @@ namespace Puddle
         public int collisionWidth, collisionHeight;
         public int frameWidth, frameHeight;
         public int frameIndex;
+        public int layerDepth;
+        public float rotationAngle;
         public bool destroyed;
         public bool faceLeft;
 		public bool isSolid;
         public string imageFile;
 		public string name;
+        public Color spriteColor;
         protected Texture2D image;
         protected Dictionary<string, Texture2D> images;
 
@@ -39,6 +42,9 @@ namespace Puddle
             this.faceLeft = false;
             this.frameIndex = 0;
 			this.isSolid = false;
+            this.rotationAngle = 0.0f;
+            this.layerDepth = 1;
+            this.spriteColor = Color.White;
         }
 
         // Properties
@@ -95,11 +101,11 @@ namespace Puddle
                 image,
                 new Rectangle(spriteX, spriteY, spriteWidth, spriteHeight),
                 new Rectangle(frameIndex, 0, frameWidth, frameHeight),
-                Color.White,
-                0,
+                spriteColor,
+                rotationAngle,
                 new Vector2(spriteWidth / 2, spriteHeight / 2),
                 faceLeft ? SpriteEffects.FlipHorizontally : SpriteEffects.None,
-                0
+                layerDepth
             );
         }
 

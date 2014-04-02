@@ -349,12 +349,6 @@ namespace Puddle
                     powerup[((PowerUp)item).name] = true;
                     item.destroyed = true;
                 }
-				// Press buttons
-                if (item is Button && Intersects(item))
-                {
-                    Button but = (Button)item;
-                    but.Action(physics);
-                }
 
                 if (item is NextLevel && Intersects(item))
                 {
@@ -362,16 +356,7 @@ namespace Puddle
                     newMap = String.Format("Content/{0}.tmx", n.levelDestination);
                 }
 
-                if (item is Pipe && Intersects(item) && (puddled && frameIndex == 5 * 32))
-                {
-                    Pipe p = (Pipe)item;
-                    if (p.direction == "down")
-                    {
-                        p.Action(physics);
-                        //Death ();
-                    }
 
-                }
             }
         }
 
