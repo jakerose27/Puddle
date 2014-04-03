@@ -8,6 +8,8 @@ using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using Microsoft.Xna.Framework.Storage;
 using Microsoft.Xna.Framework.GamerServices;
+using Microsoft.Xna.Framework.Audio;
+using Microsoft.Xna.Framework.Media;
 using TiledSharp;
 #endregion
 
@@ -17,11 +19,13 @@ namespace Puddle
     {
         GraphicsDeviceManager graphics;
         SpriteBatch spriteBatch;
-        Physics physics;
+        Level level;
         Player player1;
         Controls controls;
         TmxMap map;
         Texture2D background;
+        SoundEffect song;
+        SoundEffectInstance instance;
         bool newMapLoad;
         float newMapTimer;
 		const float LOAD_SCREEN_TIME = 1.0f;
@@ -31,6 +35,7 @@ namespace Puddle
         {
             graphics  = new GraphicsDeviceManager(this);
             Content.RootDirectory = "Content";
+            
         }
 
         protected override void Initialize()
@@ -48,11 +53,17 @@ namespace Puddle
 				32, 
 				32
 			);
-            physics = new Physics(player1);
+            level = new Level(player1);
             controls = new Controls();
             newMapLoad = true;
             newMapTimer = LOAD_SCREEN_TIME;
             player1.newMap = "Content/Level1.tmx";
+
+            song = Content.Load<SoundEffect>("InGame.wav");
+            instance = song.CreateInstance();
+            instance.IsLooped = true;
+            if (instance.State == SoundState.Stopped)
+                instance.Play();
 
             base.Initialize();            
         }
@@ -64,10 +75,13 @@ namespace Puddle
             // TODO: Load all content in level class
             player1.LoadContent(this.Content);
 
-//            foreach (Block b in physics.items)
+//            foreach (Block b in level.items)
 //                b.LoadContent(this.Content);
-            foreach (Sprite item in physics.items)
+            foreach (Sprite item in level.items)
                 item.LoadContent(this.Content);
+
+            
+            
         }
 
         protected void LoadMap(string name)
@@ -84,7 +98,7 @@ namespace Puddle
 
 
             // Create map objects
-            physics = new Physics(player1);
+            level = new Level(player1);
 
             foreach (TmxObjectGroup group in map.ObjectGroups)
             {
@@ -93,9 +107,9 @@ namespace Puddle
                     Type t = Type.GetType(obj.Type);
                     object item = Activator.CreateInstance(t, obj);
 //                    if (item is Block)
-//                        physics.items.Add((Block)item);
+//                        level.items.Add((Block)item);
 //                    else
-                        physics.items.Add((Sprite)item);
+                        level.items.Add((Sprite)item);
                 }
             }
 
@@ -117,13 +131,12 @@ namespace Puddle
                 Exit();
 
             // TODO: Level.Update() should cover all objects in that level
-            player1.Update(controls, physics, this.Content, gameTime);
+            player1.Update(controls, level, this.Content, gameTime);
             if (!player1.newMap.Equals(""))
             {
                 newMapLoad = true;
             }
-            physics.Update(this.Content);
-
+            level.Update(this.Content);
             
             base.Update(gameTime);
         }
@@ -167,14 +180,12 @@ namespace Puddle
                 );
 
                 // TODO: Level.Draw() should cover all this
-                foreach (Enemy e in physics.enemies)
+                foreach (Enemy e in level.enemies)
                     e.Draw(spriteBatch);
-                foreach (Shot s in physics.shots)
+				foreach (Sprite s in level.projectiles)
                     s.Draw(spriteBatch);
-                foreach (Sprite item in physics.items)
+                foreach (Sprite item in level.items)
                     item.Draw(spriteBatch);
-                foreach (Fireball f in physics.fireballs)
-                    f.Draw(spriteBatch);
                 player1.Draw(spriteBatch);
             }
             spriteBatch.End();

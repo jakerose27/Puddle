@@ -27,13 +27,13 @@ namespace Puddle
                 faceLeft = true;
         }
 
-        public override void Update(Physics physics, ContentManager content)
+        public override void Update(Level level, ContentManager content)
         {
-            if (physics.count % 100 == 0)
+            if (level.count % 100 == 0)
             {
                 Fireball fireball = new Fireball(this);
                 fireball.LoadContent(content);
-                physics.fireballs.Add(fireball);
+				level.projectiles.Add((Sprite)fireball);
             }
         }
     }

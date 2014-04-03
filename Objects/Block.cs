@@ -127,22 +127,22 @@ namespace Puddle
             }
         }
 
-        public override void Update(Physics physics)
+        public override void Update(Level level)
         {
-            Move(physics);
+            Move(level);
 
-            CheckCollisions(physics);
+            CheckCollisions(level);
 
         }
 
-        public void Move(Physics physics)
+        public void Move(Level level)
         {
             // Gravity
             if (gravity)
             {
-				y_vel += physics.gravity;
-				if (y_vel > physics.maxFallSpeed)
-					y_vel = physics.maxFallSpeed;
+				y_vel += level.gravity;
+				if (y_vel > level.maxFallSpeed)
+					y_vel = level.maxFallSpeed;
 				spriteY += Convert.ToInt32(y_vel);
             }
 
@@ -151,13 +151,13 @@ namespace Puddle
             if (uCol)
             {
                 uBlock.x_vel = x_vel;
-                uBlock.Move(physics);
+                uBlock.Move(level);
             }
 
 			x_vel = 0;
         }
 
-        public void CheckCollisions(Physics physics)
+        public void CheckCollisions(Level level)
         {
             // Assume no collisions
             rCol = false;
@@ -169,7 +169,7 @@ namespace Puddle
 				return;
 
             // Check collisions with other blocks
-			foreach (Sprite s in physics.items)
+			foreach (Sprite s in level.items)
             {
 				if (this != s && s.isSolid && Intersects(s))
                 {
@@ -188,8 +188,8 @@ namespace Puddle
 						rCol = true;
 						while (Intersects(s))
 							spriteX--;
-						while (Intersects(physics.player))
-							physics.player.spriteX--;
+						while (Intersects(level.player))
+							level.player.spriteX--;
 					}
 
 					// Collide with block on left
@@ -198,8 +198,8 @@ namespace Puddle
 						lCol = true;
 						while (Intersects(s))
 							spriteX++;
-						while (Intersects(physics.player))
-							physics.player.spriteX++;
+						while (Intersects(level.player))
+							level.player.spriteX++;
 					}
                 }
             }

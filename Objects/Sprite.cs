@@ -6,6 +6,7 @@ using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using Microsoft.Xna.Framework.Storage;
 using Microsoft.Xna.Framework.GamerServices;
+using Microsoft.Xna.Framework.Audio;
 
 namespace Puddle
 {
@@ -26,6 +27,8 @@ namespace Puddle
         public Color spriteColor;
         protected Texture2D image;
         protected Dictionary<string, Texture2D> images;
+        protected List<string> soundFiles;
+        protected Dictionary<string, SoundEffect> soundList;
 
         public Sprite(int x, int y, int width, int height)
         {
@@ -45,6 +48,9 @@ namespace Puddle
             this.rotationAngle = 0.0f;
             this.layerDepth = 1;
             this.spriteColor = Color.White;
+
+            this.soundFiles = new List<string>();
+            this.soundList = new Dictionary<string, SoundEffect>();
         }
 
         // Properties
@@ -84,15 +90,23 @@ namespace Puddle
             return intersect_vertical && intersect_horizontal;
         }
 
-        public virtual void Update(Physics physics)
+        public virtual void Update(Level level)
         { }
 
-        public virtual void Update(Physics physics, ContentManager content)
+        public virtual void Update(Level level, ContentManager content)
         { }
 
         public virtual void LoadContent(ContentManager content)
         {
             image = content.Load<Texture2D>(imageFile);
+            foreach (string file in soundFiles)
+            {
+                if (!soundList.ContainsKey(file))
+                {
+                    SoundEffect effect = content.Load<SoundEffect>(file);
+                    soundList.Add(file, effect);
+                }               
+            }
         }
 
         public virtual void Draw(SpriteBatch sb)

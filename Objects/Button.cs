@@ -15,6 +15,7 @@ namespace Puddle
         public bool activating;
         public bool activated;
         public bool holdButton;
+        public bool played; //If sound has been played
 
         // TODO: add in function passing for individual button actions
         public Button(TmxObjectGroup.TmxObject obj) :
@@ -27,6 +28,8 @@ namespace Puddle
                 holdButton = true;
                 spriteColor = Color.Black;
             }
+            played = false;
+            soundFiles.Add("button.wav");
             name = obj.Name;
             collisionWidth = 24;
             collisionHeight = 30;
@@ -58,13 +61,13 @@ namespace Puddle
 
         }
 
-        public override void Update(Physics physics)
+        public override void Update(Level level)
         {
             CheckCollisions(physics);
-            Animate(physics);
+            Animate(level);
         }
 
-        public void Animate(Physics physics)
+        public void Animate(Level level)
         {
             if (CheckCollisions(physics))
             {
@@ -99,10 +102,20 @@ namespace Puddle
                     return true;
                 }
             }
+            if (activating && frameIndex < (32 * 7))
+            {
+                frameIndex += 32;
+                return true;
+            }
+            if (activating && !played)
+            {
+                soundList["button.wav"].Play();
+                played = true;
+            }
             return false;
         }
 
-        public void Action(Physics physics)
+        public void Action(Level level)
         {
             if (activated)
                 return;
@@ -110,7 +123,7 @@ namespace Puddle
 
             if (this.name == "Button 1")
             {
-				foreach (Sprite s in physics.items)
+				foreach (Sprite s in level.items)
                 {
                     if (s.name == "Block 3")
                     {
@@ -120,7 +133,7 @@ namespace Puddle
             }
             else if (this.name == "Button 2")
             {
-				foreach (Sprite s in physics.items)
+				foreach (Sprite s in level.items)
                 {
                     if (s.name == "Block 2")
                     {
@@ -130,7 +143,7 @@ namespace Puddle
             }
             else if (this.name == "Button 3")
             {
-				foreach (Sprite s in physics.items)
+				foreach (Sprite s in level.items)
                 {
                     if (s.name == "Block 4")
                     {
