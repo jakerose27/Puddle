@@ -63,13 +63,13 @@ namespace Puddle
 
         public override void Update(Level level)
         {
-            CheckCollisions(physics);
+            CheckCollisions(level);
             Animate(level);
         }
 
         public void Animate(Level level)
         {
-            if (CheckCollisions(physics))
+            if (CheckCollisions(level))
             {
                 if (frameIndex < (32 * 7))
                     frameIndex += 32;
@@ -87,18 +87,18 @@ namespace Puddle
             }
         }
 
-        public bool CheckCollisions(Physics physics)
+        public bool CheckCollisions(Level level)
         {
-            if (Intersects(physics.player))
+            if (Intersects(level.player))
             {
-                Action(physics);
+                Action(level);
                 return true;
             }
-            foreach (Sprite item in physics.items)
+            foreach (Sprite item in level.items)
             {
                 if (item is Block && Intersects(item) && ((Block)(item)).blockType == "push")
                 {
-                    Action(physics);
+                    Action(level);
                     return true;
                 }
             }
