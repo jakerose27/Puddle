@@ -20,6 +20,10 @@ export class GameScene extends Phaser.Scene {
   private ground!: Phaser.Physics.Arcade.StaticGroup;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
 
+  private accumulator: number = 0;
+  private readonly FIXED_STEP_MS: number = 1000 / 60; // 16.667ms = 60 Hz
+  private tickCount: number = 0; // equivalent of Level.count
+
   constructor() {
     super({ key: 'GameScene' });
   }
@@ -108,7 +112,28 @@ export class GameScene extends Phaser.Scene {
     this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
   }
 
-  update(): void {
+  update(_time: number, delta: number): void {
+    // Fixed-step accumulator — runs simulation at exactly 60 Hz
+    // regardless of browser frame rate (30fps, 60fps, 144fps monitors)
+    this.accumulator += delta;
+
+    while (this.accumulator >= this.FIXED_STEP_MS) {
+      this.fixedUpdate();
+      this.accumulator -= this.FIXED_STEP_MS;
+      this.tickCount++;
+    }
+
+    // Interpolation factor for smooth rendering (optional, skip for now)
+    // const alpha = this.accumulator / this.FIXED_STEP_MS;
+  }
+
+  /**
+   * Fixed-step simulation tick (~60 Hz).
+   * Decoupled from browser frame rate via accumulator pattern.
+   * Equivalent to Game1.Update() in the original C# MonoGame code.
+   * this.tickCount mirrors Level.count — use it for frame-based timers.
+   */
+  private fixedUpdate(): void {
     const body = this.player.body as Phaser.Physics.Arcade.Body;
     const onGround = body.blocked.down;
 
