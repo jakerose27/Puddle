@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { EntityFactory } from '../entities/EntityFactory';
 import type { TiledObject } from '../entities/Block';
+import { Roller } from '../entities/Roller';
 
 const PLAYER_SPEED = 200; // px/sec
 const TILE_SIZE = 32;
@@ -8,7 +9,11 @@ const TILE_SIZE = 32;
 export class GameScene extends Phaser.Scene {
   private player!: Phaser.Physics.Arcade.Sprite;
   private ground!: Phaser.Physics.Arcade.StaticGroup;
+  private rollers!: Phaser.GameObjects.Group;
+  private hazards!: Phaser.Physics.Arcade.StaticGroup;
+  private gates!: Phaser.Physics.Arcade.StaticGroup;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
+  private playerDead: boolean = false;
 
   private accumulator: number = 0;
   private readonly FIXED_STEP_MS: number = 1000 / 60; // 16.667ms = 60 Hz
@@ -32,6 +37,13 @@ export class GameScene extends Phaser.Scene {
       frameWidth: TILE_SIZE,
       frameHeight: TILE_SIZE,
     });
+
+    // Entity sprites
+    this.load.spritesheet('roller', 'assets/images/roller.png', {
+      frameWidth: TILE_SIZE,
+      frameHeight: TILE_SIZE,
+    });
+    this.load.image('geyser', 'assets/images/geyser.png');
   }
 
   create(): void {
@@ -66,6 +78,37 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
+    // Dynamic groups for enemies and hazards.
+    this.rollers = this.physics.add.group();
+    this.hazards = this.physics.add.staticGroup();
+    this.gates = this.physics.add.staticGroup();
+
+    // Items layer contains Rollers, Geysers, and Checkpoints.
+    const itemsLayer = map.getObjectLayer('Items');
+    if (itemsLayer) {
+      for (const obj of itemsLayer.objects as TiledObject[]) {
+        EntityFactory.create(this, obj, {
+          ground: this.ground,
+          rollers: this.rollers,
+          hazards: this.hazards,
+          gates: this.gates,
+        });
+      }
+    }
+
+    // Gate layer contains NextLevel objects (empty in Level1-1, wired for future levels).
+    const gateLayer = map.getObjectLayer('Gate');
+    if (gateLayer) {
+      for (const obj of gateLayer.objects as TiledObject[]) {
+        EntityFactory.create(this, obj, {
+          ground: this.ground,
+          rollers: this.rollers,
+          hazards: this.hazards,
+          gates: this.gates,
+        });
+      }
+    }
+
     // Player — spawned at startX/startY from map properties.
     // startY in the TMX is the top of the bottom tile row (the floor).
     // Place the player center one tile above that floor line.
@@ -87,6 +130,14 @@ export class GameScene extends Phaser.Scene {
 
     // Collide player with ground blocks
     this.physics.add.collider(this.player, this.ground);
+
+    // Rollers stand on ground
+    this.physics.add.collider(this.rollers, this.ground);
+
+    // Enemy / hazard / gate overlaps
+    this.physics.add.overlap(this.player, this.rollers, this.onPlayerHitEnemy, undefined, this);
+    this.physics.add.overlap(this.player, this.hazards, this.onPlayerHitHazard, undefined, this);
+    this.physics.add.overlap(this.player, this.gates, this.onPlayerReachedGate, undefined, this);
 
     // Cursor keys
     this.cursors = this.input.keyboard!.createCursorKeys();
@@ -140,5 +191,38 @@ export class GameScene extends Phaser.Scene {
     if ((this.cursors.up.isDown || this.cursors.space.isDown) && onGround) {
       this.player.setVelocityY(-400);
     }
+
+    // Tick each roller
+    this.rollers.getChildren().forEach(child => {
+      if (child instanceof Roller) {
+        child.update(this.tickCount);
+      }
+    });
+  }
+
+  private onPlayerHitEnemy(): void {
+    this.playerDead = true;
+  }
+
+  private onPlayerHitHazard(): void {
+    this.playerDead = true;
+  }
+
+  private onPlayerReachedGate(): void {
+    console.log('Level complete!');
+    // Remove this overlap so the overlay only fires once
+    this.physics.world.removeCollider(
+      this.physics.add.overlap(this.player, this.gates, this.onPlayerReachedGate, undefined, this)
+    );
+    this.add
+      .text(this.cameras.main.centerX, this.cameras.main.centerY, 'LEVEL COMPLETE', {
+        fontSize: '48px',
+        color: '#ffffff',
+        stroke: '#000000',
+        strokeThickness: 6,
+      })
+      .setOrigin(0.5)
+      .setScrollFactor(0)
+      .setDepth(10);
   }
 }

@@ -1,8 +1,14 @@
 import Phaser from 'phaser';
 import { Block, TiledObject } from './Block';
+import { Roller } from './Roller';
+import { Geyser } from './Geyser';
+import { NextLevel } from './NextLevel';
 
 export interface EntityGroups {
   ground: Phaser.Physics.Arcade.StaticGroup;
+  rollers?: Phaser.GameObjects.Group;
+  hazards?: Phaser.Physics.Arcade.StaticGroup;
+  gates?: Phaser.Physics.Arcade.StaticGroup;
 }
 
 type EntityCreator = (
@@ -20,6 +26,18 @@ type EntityCreator = (
  */
 const REGISTRY: Record<string, EntityCreator> = {
   'Puddle.Block': (scene, obj, groups) => Block.fromTiledObject(scene, obj, groups.ground),
+  'Puddle.Roller': (scene, obj, groups) => {
+    if (!groups.rollers) return null;
+    return Roller.fromTiledObject(scene, obj, groups.rollers);
+  },
+  'Puddle.Geyser': (scene, obj, groups) => {
+    if (!groups.hazards) return null;
+    return Geyser.fromTiledObject(scene, obj, groups.hazards);
+  },
+  'Puddle.NextLevel': (scene, obj, groups) => {
+    if (!groups.gates) return null;
+    return NextLevel.fromTiledObject(scene, obj, groups.gates);
+  },
 };
 
 export const EntityFactory = {
