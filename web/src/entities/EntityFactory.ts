@@ -4,16 +4,19 @@ import { Roller } from './Roller';
 import { Geyser } from './Geyser';
 import { NextLevel } from './NextLevel';
 import { SpikeBall } from './SpikeBall';
+import { Checkpoint } from './Checkpoint';
+import type { GameScene } from '../scenes/GameScene';
 
 export interface EntityGroups {
   ground: Phaser.Physics.Arcade.StaticGroup;
   enemies?: Phaser.Physics.Arcade.Group;
   hazards?: Phaser.Physics.Arcade.StaticGroup;
   gates?: Phaser.Physics.Arcade.StaticGroup;
+  checkpoints?: Phaser.Physics.Arcade.StaticGroup;
 }
 
 type EntityCreator = (
-  scene: Phaser.Scene,
+  scene: GameScene,
   obj: TiledObject,
   groups: EntityGroups,
 ) => unknown;
@@ -43,6 +46,10 @@ const REGISTRY: Record<string, EntityCreator> = {
     if (!groups.enemies) return null;
     return SpikeBall.fromTiledObject(scene, obj, groups.enemies);
   },
+  'Puddle.Checkpoint': (scene, obj, groups) => {
+    if (!groups.checkpoints) return null;
+    return Checkpoint.fromTiledObject(scene, obj, groups.checkpoints);
+  },
 };
 
 export const EntityFactory = {
@@ -51,7 +58,7 @@ export const EntityFactory = {
    * Returns the created entity, or null if the type is unknown.
    * Unknown types are logged (not thrown) so one bad object doesn't crash the level.
    */
-  create(scene: Phaser.Scene, obj: TiledObject, groups: EntityGroups): unknown {
+  create(scene: GameScene, obj: TiledObject, groups: EntityGroups): unknown {
     const creator = REGISTRY[obj.type ?? ''];
     if (!creator) {
       if (obj.type) {
