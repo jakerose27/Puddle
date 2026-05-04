@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { EntityFactory } from '../entities/EntityFactory';
 import type { TiledObject } from '../entities/Block';
 import { Roller } from '../entities/Roller';
+import { SpikeBall } from '../entities/SpikeBall';
 
 const PLAYER_SPEED = 200; // px/sec
 const TILE_SIZE = 32;
@@ -9,7 +10,7 @@ const TILE_SIZE = 32;
 export class GameScene extends Phaser.Scene {
   private player!: Phaser.Physics.Arcade.Sprite;
   private ground!: Phaser.Physics.Arcade.StaticGroup;
-  private rollers!: Phaser.GameObjects.Group;
+  private enemies!: Phaser.Physics.Arcade.Group;
   private hazards!: Phaser.Physics.Arcade.StaticGroup;
   private gates!: Phaser.Physics.Arcade.StaticGroup;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
@@ -51,6 +52,7 @@ export class GameScene extends Phaser.Scene {
       frameHeight: TILE_SIZE,
     });
     this.load.image('geyser', 'assets/images/geyser.png');
+    this.load.image('spikeball', 'assets/images/Enemies/spikeball.png');
   }
 
   create(): void {
@@ -86,7 +88,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     // Dynamic groups for enemies and hazards.
-    this.rollers = this.physics.add.group();
+    this.enemies = this.physics.add.group();
     this.hazards = this.physics.add.staticGroup();
     this.gates = this.physics.add.staticGroup();
 
@@ -96,7 +98,7 @@ export class GameScene extends Phaser.Scene {
       for (const obj of itemsLayer.objects as TiledObject[]) {
         EntityFactory.create(this, obj, {
           ground: this.ground,
-          rollers: this.rollers,
+          enemies: this.enemies,
           hazards: this.hazards,
           gates: this.gates,
         });
@@ -109,7 +111,20 @@ export class GameScene extends Phaser.Scene {
       for (const obj of gateLayer.objects as TiledObject[]) {
         EntityFactory.create(this, obj, {
           ground: this.ground,
-          rollers: this.rollers,
+          enemies: this.enemies,
+          hazards: this.hazards,
+          gates: this.gates,
+        });
+      }
+    }
+
+    // Enemies layer contains SpikeBall objects.
+    const enemiesLayer = map.getObjectLayer('Enemies');
+    if (enemiesLayer) {
+      for (const obj of enemiesLayer.objects as TiledObject[]) {
+        EntityFactory.create(this, obj, {
+          ground: this.ground,
+          enemies: this.enemies,
           hazards: this.hazards,
           gates: this.gates,
         });
@@ -141,11 +156,11 @@ export class GameScene extends Phaser.Scene {
     // Collide player with ground blocks
     this.physics.add.collider(this.player, this.ground);
 
-    // Rollers stand on ground
-    this.physics.add.collider(this.rollers, this.ground);
+    // Enemies stand on ground
+    this.physics.add.collider(this.enemies, this.ground);
 
     // Enemy / hazard / gate overlaps
-    this.physics.add.overlap(this.player, this.rollers, this.onPlayerHitEnemy, undefined, this);
+    this.physics.add.overlap(this.player, this.enemies, this.onPlayerHitEnemy, undefined, this);
     this.physics.add.overlap(this.player, this.hazards, this.onPlayerHitHazard, undefined, this);
     this.physics.add.overlap(this.player, this.gates, this.onPlayerReachedGate, undefined, this);
 
@@ -153,6 +168,7 @@ export class GameScene extends Phaser.Scene {
     this.cursors = this.input.keyboard!.createCursorKeys();
 
     // Camera follows player within map bounds
+    this.physics.world.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
     this.cameras.main.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
     this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
   }
@@ -237,9 +253,9 @@ export class GameScene extends Phaser.Scene {
       this.player.setVelocityY(-400);
     }
 
-    // Tick each roller
-    this.rollers.getChildren().forEach(child => {
-      if (child instanceof Roller) {
+    // Tick each enemy that has per-tick logic
+    this.enemies.getChildren().forEach(child => {
+      if (child instanceof Roller || child instanceof SpikeBall) {
         child.update(this.tickCount);
       }
     });

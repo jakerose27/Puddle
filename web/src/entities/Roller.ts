@@ -55,7 +55,7 @@ export class Roller extends Phaser.Physics.Arcade.Sprite {
   static fromTiledObject(
     scene: Phaser.Scene,
     obj: TiledObject,
-    group: Phaser.GameObjects.Group,
+    group: Phaser.Physics.Arcade.Group,
   ): Roller {
     const w = obj.width || 32;
     const h = obj.height || 32;
@@ -66,7 +66,7 @@ export class Roller extends Phaser.Physics.Arcade.Sprite {
       obj.properties?.some(p => p.name === 'left' && String(p.value) === 'True') ?? false;
 
     const roller = new Roller(scene, cx, cy, facingLeft);
-    group.add(roller);
+    group.add(roller, true);
     return roller;
   }
 
