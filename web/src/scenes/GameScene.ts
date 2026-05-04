@@ -1,16 +1,6 @@
 import Phaser from 'phaser';
-
-// Tiled JSON object shape (minimal — only the fields we use)
-interface TiledObject {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  name: string;
-  type: string;
-  gid?: number;
-  properties?: Array<{ name: string; value: string }>;
-}
+import { EntityFactory } from '../entities/EntityFactory';
+import type { TiledObject } from '../entities/Block';
 
 const PLAYER_SPEED = 200; // px/sec
 const TILE_SIZE = 32;
@@ -66,19 +56,13 @@ export class GameScene extends Phaser.Scene {
     const startX = parseInt(mapProps.find(p => p.name === 'startX')?.value ?? '96', 10);
     const startY = parseInt(mapProps.find(p => p.name === 'startY')?.value ?? '640', 10);
 
-    // Build static collision group from Ground object layer (Puddle.Block objects)
+    // Build static collision group from Ground object layer via EntityFactory.
+    // Objects with type "Puddle.Block" are dispatched to Block.fromTiledObject().
     this.ground = this.physics.add.staticGroup();
     const groundLayer = map.getObjectLayer('Ground');
     if (groundLayer) {
       for (const obj of groundLayer.objects as TiledObject[]) {
-        // Tiled tile-object convention: (x, y) is the bottom-left of the tile
-        const w = obj.width || TILE_SIZE;
-        const h = obj.height || TILE_SIZE;
-        const cx = obj.x + w / 2;
-        const cy = obj.y - h / 2; // bottom-left y → center y
-        const rect = this.add.rectangle(cx, cy, w, h, 0x8b6f47) as Phaser.GameObjects.Rectangle;
-        this.physics.add.existing(rect, true); // true = static
-        this.ground.add(rect);
+        EntityFactory.create(this, obj, { ground: this.ground });
       }
     }
 
