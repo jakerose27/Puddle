@@ -42,3 +42,17 @@ Dallas evaluated three options against the hard blockers and medium-complexity i
 - **Intro slide timer is in `Draw()`, not `Update()`** — should be moved as part of the accumulator PR.
 - **Top collision risk**: `Convert.ToInt32(xVel/yVel)` movement without sub-stepping could tunnel through 32-px tiles at velocities >16 px/frame. Current max velocities are safe at 60 fps fixed step.
 - **Report location**: `docs/physics-delta-time-scope.md`
+
+### 2026-05-03 — Orchestration & Decisions Merge
+
+**Parker's Spike 2 work (parallel):**
+- Implemented Background tile layer rendering in GameScene.ts
+- Fixed Phaser 3 TMX misconception in feasibility doc (JSON only, not XML)
+- Added delta-time physics risk to Option 2 table (flagging Ripley's findings)
+- TMX→JSON conversion script working; all 7 levels layers parse correctly
+- Commit a71908b pushed to origin/squad/web-port-spike
+
+**Implications for physics implementation:**
+- Fixed-step accumulator (Option 3B) is now formally recommended in decisions.md
+- Next blocker: confirm accumulator works in C# prototype or TypeScript before entity porting
+- All 5 browser risks (rAF not locked to 60 Hz, physics calibration, AI cadence, collision, Draw/Update split) will be mitigated by accumulator pattern

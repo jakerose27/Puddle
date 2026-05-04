@@ -11,6 +11,20 @@ Key files: Game1.cs (game loop), Program.cs (entry point), Level.cs, Controls.cs
 
 ## Learnings
 
+### Spike 2 — Tile layer rendering complete (2026-05-03T21:19:07.428-07:00)
+
+**What changed:**
+- Replaced `bg.setDisplaySize()` stretched PNG approach with `map.createLayer('Background', [backgroundTileset, brickTileset])`.
+- Both tilesets (`background` firstgid=1, `brick` firstgid=281) passed to `createLayer()` so all GIDs resolve.
+- `createLayer()` result checked for null before calling `setDepth(-1)` — safe fallback pattern.
+- Player depth=1, tile layer depth=-1. Ground collision rectangles kept unchanged.
+- `npm run build` passes clean (TypeScript + Vite). Committed to `squad/web-port-spike` as `a71908b`.
+
+**Key Phaser tilemap pattern confirmed:**
+- `map.addTilesetImage(tilesetNameInJSON, phaserImageKey)` — first arg must match tileset name in Tiled JSON exactly.
+- Pass ALL tilesets used by a layer as array to `createLayer()` — missing tilesets cause silent tile failures, not errors.
+- `createLayer()` returns `null` if the layer name doesn't match — always guard.
+
 ### Spike 2 — TypeScript + Phaser 3 scaffold (2026-05-03T18:23:24.325-07:00)
 
 **What was built:**
@@ -69,3 +83,17 @@ Key files: Game1.cs (game loop), Program.cs (entry point), Level.cs, Controls.cs
 - `docs/context.md` (updated)
 - `.squad/decisions/inbox/parker-feasibility-fix.md`
 - `.squad/decisions/inbox/parker-spike2-findings.md`
+
+### Orchestration & Decisions Merge (2026-05-03T21:19:07.428-07:00)
+
+**Ripley's Physics Delta-Time work (parallel):**
+- Full C# codebase scan confirmed 100% frame-rate coupling via `Level.count`
+- Proposed fixed-step accumulator (Option 3B, S-effort, ~20 lines)
+- Documented full analysis in `docs/physics-delta-time-scope.md`
+- Recommendation approved for Jake / Dallas review
+
+**Implications for web port:**
+- Physics gate: confirm fixed-step loop works before porting any entity
+- This unblocks all downstream entity translation work (player, enemies, AI, collision)
+- No entity logic changes needed — only encapsulate ticks in accumulator loop
+- Feasibility doc now reflects physics dependency as a Medium risk in Option 2
