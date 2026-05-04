@@ -11,6 +11,31 @@ Key files: Game1.cs (game loop), Program.cs (entry point), Level.cs, Controls.cs
 
 ## Learnings
 
+### Spike 3 — Entity factory: Block end-to-end (2026-05-03T21:28:40.544-07:00)
+
+**What changed:**
+- Created `web/src/entities/Block.ts` — wraps `Phaser.GameObjects.Rectangle` with static Arcade Physics. `fromTiledObject(scene, obj, group)` factory method handles Tiled bottom-left → center coordinate conversion and adds itself to the provided StaticGroup.
+- Created `web/src/entities/EntityFactory.ts` — registry-based type-key dispatch. `REGISTRY["Puddle.Block"]` routes to `Block.fromTiledObject`. Unknown types are `console.warn`-ed, not thrown.
+- Updated `GameScene.ts` — Ground object layer loop now calls `EntityFactory.create(this, obj, { ground: this.ground })` instead of inline rectangle/physics code. Player collision with ground still works identically.
+- Build passes clean (`tsc && vite build`). Committed `b93b5c0` to `squad/web-port-spike`.
+
+**Key findings on C# Block:**
+- Block has FOUR variants driven by Tiled properties: `metal` (static, no gravity), `push` (gravity + pushable by player), `break` (destructible), `temp` (gate/invisible).
+- Ground layer in Level1-1.json: all 222 objects are `type: "Puddle.Block"` with no custom properties → all default to static "metal" blocks. The push/break/temp variants appear in the Items layer.
+- Block.cs reads these Tiled properties: `left`, `right`, `gravity`, `canBreak`, `transparent`, `solid`. These are stubbed with a `// TODO` comment in Block.ts for future implementation.
+- Sound effects (Slide.wav, BlockFall.wav) used by push-type blocks — deferred.
+
+**Factory pattern confirmed:**
+- `REGISTRY` keyed on fully-qualified C# type string (e.g. `"Puddle.Block"`) — matches JSON `type` field exactly.
+- Each entry is `(scene, obj, groups) => Entity` — groups carries all shared physics groups (ground, enemies, etc.) so entities self-register.
+- `EntityFactory.create()` returns `unknown` (callers can cast if needed) or `null` for unknown types.
+- Pattern scales cleanly to remaining ~14 entity classes.
+
+**Next entity classes to port (priority order):**
+1. `Puddle.Roller` (Items layer, 17 enemies)
+2. `Puddle.Geyser` / `Puddle.Pipe` (hazards)
+3. `Puddle.PowerUp`, `Puddle.Checkpoint`, `Puddle.NextLevel`
+
 ### Spike 2 — Tile layer rendering complete (2026-05-03T21:19:07.428-07:00)
 
 **What changed:**

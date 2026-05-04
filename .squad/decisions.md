@@ -101,6 +101,89 @@ Full technical map of the Puddle repo completed. Key findings for browser port f
 3. **Spike: Replace `TiledSharp` file I/O with in-memory parse** — validate that TMX XML can be parsed from a `Stream` or `string` without filesystem access.
 4. **Spike: Delta-time physics refactor assessment** — estimate scope of decoupling physics from `count++` ticks.
 
+---
+
+### 2026-05-03T21:28:40-07:00: Fixed-Step Accumulator Implementation
+**Author:** Ripley (Engine Dev)  
+**Status:** Implemented — build passing, pushed to `squad/web-port-spike`  
+**Commit:** 225af46
+
+#### Decision
+Implement a fixed-step accumulator in `GameScene.update()` to decouple physics simulation from browser frame rate.
+
+#### Rationale
+The original C# engine drives all physics, AI, animation timers, and game state through `Level.count`, a bare integer incremented once per frame. The browser's `requestAnimationFrame` is not locked to 60 Hz — it runs at the monitor's refresh rate (30, 60, 120, 144 Hz). Without the accumulator, physics would run faster on high-refresh monitors and slower on 30 Hz devices.
+
+The fixed-step accumulator pattern solves this with ~20 lines: it drains `delta` milliseconds from an accumulator at exactly 16.667 ms (60 Hz) per tick, calling `fixedUpdate()` once per consumed interval. `tickCount` increments with each tick and is the direct equivalent of `Level.count`.
+
+#### Implementation details
+- **`this.accumulator`** — carries fractional frame time between `update()` calls  
+- **`this.FIXED_STEP_MS = 1000/60`** — the fixed interval (16.667ms)  
+- **`this.tickCount`** — mirrors `Level.count`; use this for all frame-based timers when porting C# entity logic  
+- **`fixedUpdate()`** — all simulation logic lives here, never in `update()`  
+- **`update(time, delta)`** — accumulator loop only; no gameplay logic
+
+#### Files changed
+- `web/src/scenes/GameScene.ts` — accumulator state + `update()` + `fixedUpdate()`
+
+---
+
+### 2026-05-03T21:28:40-07:00: Entity Factory Architecture
+**Author:** Parker (Web/Deploy)  
+**Commit:** b93b5c0  
+**Branch:** squad/web-port-spike
+
+#### Decision
+Use a static `REGISTRY: Record<string, EntityCreator>` dictionary in `EntityFactory.ts`.
+
+#### Context
+Tiled JSON object layers store entity types as fully-qualified C# class names (e.g. `"Puddle.Block"`, `"Puddle.Roller"`). The C# game uses `Type.GetType(obj.Type)` + `Activator.CreateInstance` reflection for instantiation. We need a TypeScript equivalent that is AOT-safe (no reflection), readable, and easy to extend for ~15 entity classes.
+
+#### Registry specification
+- **Keys**: fully-qualified C# type strings, preserved exactly as they appear in Tiled JSON (e.g. `"Puddle.Block"`). Do NOT shorten to `"Block"` — the JSON is the source of truth and keys must match verbatim.
+- **Values**: arrow functions `(scene, obj, groups) => Entity` — each factory function is responsible for construction and self-registration into the appropriate group (e.g. `groups.ground`).
+- **EntityGroups interface**: passed into every creator, carries shared Phaser physics groups (StaticGroup for ground, Group for enemies, etc.). Extend as new group types are needed.
+- **Unknown types**: `console.warn`, return `null`. Never throw — one unknown object must not crash level load.
+
+#### Rationale
+- Avoids reflection (AOT-safe, Vite tree-shakes cleanly).
+- Keys match C# TMX type strings, so future entity ports have zero naming friction.
+- Groups pattern lets each entity self-register without GameScene needing to know entity internals.
+- Single `EntityFactory.create(scene, obj, groups)` call site in GameScene is clean and consistent across all object layers.
+
+#### Files
+- `web/src/entities/Block.ts` — first entity implementation
+- `web/src/entities/EntityFactory.ts` — registry + dispatch
+- `web/src/scenes/GameScene.ts` — updated Ground loop
+
+#### Known deferred work
+- Block has 4 variants (metal/push/break/temp) driven by Tiled properties `left`, `right`, `gravity`, `canBreak`, `transparent`, `solid`. Only metal (static) is implemented. Push/break/temp deferred until physics loop is confirmed stable.
+- EntityGroups interface will grow as more entity classes are added — keep it in EntityFactory.ts for now, extract to a shared types file if it exceeds ~5 groups.
+- Sound effects (Slide.wav, BlockFall.wav for push blocks) — deferred to audio spike.
+
+---
+
+### 2026-05-03T21:28:40-07:00: Feasibility Doc Gate Review — Round 2 (APPROVED)
+**Reviewer:** Ash  
+**Artifact:** docs/web-port-feasibility.md (revised by Parker)  
+**Verdict:** APPROVED
+
+#### Prior issues resolved
+- ✅ TMX claims corrected throughout — Phaser 3 now correctly documented as JSON-only (`tilemapTiledJSON`); explicit statement that it "does NOT read `.tmx` XML directly" (line 85); spike criterion updated to `Level1-1.json` (line 119); recommendation section says "Tiled JSON format" (line 167)
+- ✅ Delta-time physics risk present in Option 2 risk table — listed as Medium severity with clear description of `count++` coupling and `requestAnimationFrame` variance (line 115)
+- ✅ Q8 (TMX→JSON batch conversion workflow) added — asks about Tiled CLI availability, repo placement of export scripts, and re-export process for level edits (line 193)
+- ✅ Q9 (delta-time physics refactor scope) added — asks for full scope assessment before trusting the 3–6 week estimate (line 195); now comprehensively answered by Ripley's `docs/physics-delta-time-scope.md` which enumerates all 16 entity subsystems, quantifies ~40 touch points, and recommends the fixed-step accumulator (Plan 3B) as a 2–3 file change
+- ✅ Background tile layer `visible="0"` documented — note block after spike pass criteria explains the layer is hidden in Tiled and effectively vestigial; spike criterion clarified as optional (line 123)
+
+#### Remaining issues (non-blocking)
+- Minor: Open Question #2 (line 182) still contains residual TMX language: "Confirm Phaser 3's Tiled loader correctly parses object layers … from these specific TMX files" and "TMX XML support should be verified." This is inconsistent with the corrected body text that clearly states Phaser does NOT read TMX XML. Should say "from the JSON exports of these TMX files." Not blocking — the main body is unambiguous and this Q is already spike-scoped.
+- Note: `decisions.md` lines 48 and 53 still carry the old "Phaser 3 reads TMX natively" / "loads `Level1-1.tmx`" language from Dallas's original summary. Recommend Dallas's replacement update `decisions.md` to match the corrected feasibility doc. Not blocking this gate.
+
+#### Summary
+All five rejection issues from Round 1 have been corrected. The revised doc is factually accurate on Phaser 3's Tiled JSON requirement, properly surfaces the delta-time risk, documents the Background layer quirk, and adds both missing open questions. Ripley's physics-delta-time-scope.md provides strong supporting evidence that the delta-time concern is manageable. The doc is approved as the basis for committing to Option 2.
+
+---
+
 ## Governance
 
 - All meaningful changes require team consensus

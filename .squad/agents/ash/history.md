@@ -24,3 +24,18 @@ Key files: Game1.cs (game loop), Program.cs (entry point), Level.cs, Controls.cs
 - Vercel/Vite claim is broadly accurate.
 - WAV large music track memory loading not flagged as a risk.
 
+### 2026-05-03T21:28:40-07:00 — Feasibility Review Round 2: docs/web-port-feasibility.md
+**Task:** Re-review after Parker's corrections (Dallas locked out from revisions).
+**Verdict:** APPROVED
+
+All five Round 1 rejection issues resolved:
+1. TMX claims corrected — Phaser 3 now documented as JSON-only throughout.
+2. Delta-time physics risk added to Option 2 risk table (Medium severity).
+3. Q8 (TMX→JSON workflow) added to open questions.
+4. Q9 (delta-time refactor scope) added; comprehensively answered by Ripley's `docs/physics-delta-time-scope.md`.
+5. Background tile layer `visible="0"` documented with note explaining it's vestigial.
+
+Minor residual: Q2 still has TMX wording inconsistency ("TMX XML support should be verified") contradicting corrected body text. Not blocking. Also flagged that `decisions.md` still carries old "Phaser 3 reads TMX natively" language — out of scope but should be updated.
+
+Ripley's physics report (Plan 3B fixed-step accumulator) confirms delta-time concern is ~S-sized, touching 2–3 files with zero changes to game logic. Strengthens confidence in the 3–6 week estimate.
+

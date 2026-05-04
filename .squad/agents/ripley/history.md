@@ -43,6 +43,17 @@ Dallas evaluated three options against the hard blockers and medium-complexity i
 - **Top collision risk**: `Convert.ToInt32(xVel/yVel)` movement without sub-stepping could tunnel through 32-px tiles at velocities >16 px/frame. Current max velocities are safe at 60 fps fixed step.
 - **Report location**: `docs/physics-delta-time-scope.md`
 
+### 2026-05-03 — Fixed-Step Accumulator Implementation
+
+- **Accumulator pattern implemented** in `GameScene.update()` — `FIXED_STEP_MS = 1000/60`, drains delta at 16.667ms per tick.
+- **`fixedUpdate()` extracted** — all input/physics logic moved here; `update()` is now accumulator-loop only.
+- **`tickCount`** added as direct mirror of `Level.count` — future entity ports should use this for all frame-based timers.
+- **Build verified clean** (`tsc && vite build`) — no TypeScript errors.
+- **Commit 225af46** pushed to `squad/web-port-spike` without conflict (Parker's entity factory spike was to different methods).
+- **No interpolation yet** — `alpha` factor is commented in as a hook; deferred until entity porting reveals need.
+- **Spiral-of-death risk**: no tick cap on catchup — acceptable at current scope, revisit if sustained lag frames appear in testing.
+- **Decision record**: `.squad/decisions/inbox/ripley-fixed-step.md`
+
 ### 2026-05-03 — Orchestration & Decisions Merge
 
 **Parker's Spike 2 work (parallel):**
