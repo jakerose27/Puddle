@@ -43,14 +43,19 @@ export class GameScene extends Phaser.Scene {
   create(): void {
     const map = this.make.tilemap({ key: 'level1' });
 
-    // Background is a stretched PNG in the original C# game.
-    // The Background tile layer in Level1-1.tmx has visible="0" and is effectively vestigial.
-    // We match the original rendering: stretch background.png to fill the canvas.
-    const bgWidth = this.scale.width;
-    const bgHeight = this.scale.height;
-    const bg = this.add.image(bgWidth / 2, bgHeight / 2, 'background');
-    bg.setDisplaySize(bgWidth, bgHeight);
-    bg.setDepth(-1);
+    // Wire both tilesets used in the Background tile layer.
+    // GIDs 1–280 → 'background' tileset; GID 281 → 'brick' tileset.
+    const backgroundTileset = map.addTilesetImage('background', 'background');
+    const brickTileset = map.addTilesetImage('brick', 'brick');
+
+    // Render the Background tile layer using both tilesets.
+    // Fall back gracefully if createLayer returns null (e.g. layer name mismatch).
+    if (backgroundTileset && brickTileset) {
+      const bgLayer = map.createLayer('Background', [backgroundTileset, brickTileset]);
+      if (bgLayer) {
+        bgLayer.setDepth(-1);
+      }
+    }
 
     // Read spawn position from map properties (startX / startY)
     const mapProps = (map.properties as Array<{ name: string; value: string }>) || [];
