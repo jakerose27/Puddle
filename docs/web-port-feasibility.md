@@ -81,8 +81,10 @@ Upgrade the project from MonoGame v3.0 (old-style MSBuild, WindowsGL) to MonoGam
 - `Sprite.cs` base class → Phaser `GameObjects.Sprite` subclass or composition wrapper
 - `Arial.xnb` font → web font or Phaser BitmapFont; remove XNB entirely
 
+**Reused with conversion:**
+- All `.tmx` level files — **requires export to Tiled JSON format (all .tmx files)**. Phaser 3 loads Tiled maps via `this.load.tilemapTiledJSON()` using the JSON export format; it does NOT read `.tmx` XML directly. The TMX object layer (used by `Activator.CreateInstance` in `Game1.LoadMap`) maps directly to Phaser object layer factories once converted.
+
 **Reused without change:**
-- All `.tmx` level files — Phaser 3 has a built-in [Tiled map loader](https://newdocs.phaser.io/docs/3.60.0/Phaser.Tilemaps.TilemapLayer) supporting TMX and JSON. The TMX object layer (used by `Activator.CreateInstance` in `Game1.LoadMap`) maps directly to Phaser object layer factories.
 - All PNG texture assets
 - All WAV audio files (Web Audio API / Phaser Sound; WAVs are browser-supported)
 - Level design and game rules
@@ -91,14 +93,14 @@ Upgrade the project from MonoGame v3.0 (old-style MSBuild, WindowsGL) to MonoGam
 
 - **Runtime:** TypeScript compiled to ES modules (Vite or Webpack)
 - **Renderer:** Phaser 3 (WebGL primary, Canvas fallback) — replaces MonoGame `SpriteBatch` + OpenTK
-- **Level format:** Phaser 3 Tiled plugin reads `.tmx` directly
+- **Level format:** Tiled JSON (exported from .tmx via Tiled CLI or Tiled app)
 - **Audio:** Phaser `SoundManager` → Web Audio API backend
 - **Input:** Phaser `KeyboardPlugin` + `GamepadPlugin`
 - **Deploy:** `vite build` → `dist/` static folder → Vercel static site (zero config)
 
 ### Why Phaser 3 over PixiJS
 
-Phaser 3 has native Tiled TMX support, built-in physics, input, audio, and scene management. PixiJS is a lower-level renderer — it would require assembling all those pieces separately. Given the game already uses Tiled and has a scene/level structure, Phaser 3 is a significantly better fit.
+Phaser 3 has native Tiled JSON support, built-in physics, input, audio, and scene management. PixiJS is a lower-level renderer — it would require assembling all those pieces separately. Given the game already uses Tiled and has a scene/level structure, Phaser 3 is a significantly better fit.
 
 ### Risks
 
@@ -110,12 +112,15 @@ Phaser 3 has native Tiled TMX support, built-in physics, input, audio, and scene
 | Gamepad support | Low | Phaser gamepad API mirrors the XNA `GamePad` API closely |
 | Audio autoplay policy | Medium | Same browser constraint as Option 1; defer play until user interaction |
 | TMX object type names | Low | TMX files reference `obj.Type` as the fully-qualified C# class name (e.g., `Puddle.Block`); factory map must handle these names |
+| Delta-time physics | Medium | Frame-rate coupled integer tick physics (`count++`) identified in repo-map. Browser `requestAnimationFrame` is variable-rate. Behavior will drift without a delta-time refactor. |
 
 ### Pass criteria for spike
 
-- Phaser 3 project loads `Level1-1.tmx`, renders tile layer and background
+- Phaser 3 project loads `Level1-1.json` (Tiled JSON export of `Level1-1.tmx`), renders tile layer and background
 - Player sprite appears at start position from TMX `startX`/`startY` properties
 - Left/right keyboard input moves player
+
+> **Note:** The Background tile layer in `Level1-1.tmx` has `visible="0"` — it was hidden in Tiled. The current C# game renders the background as a stretched PNG, not via tile layer rendering. Phaser tile-layer rendering for this game is effectively vestigial unless the team chooses to change the rendering approach. The spike pass criterion is satisfied by a visible player sprite and block geometry; background tile rendering is optional.
 
 ### Rough effort estimate
 
@@ -159,7 +164,7 @@ Only if the game design is changing significantly (new mechanics, different feel
 
 **Pursue Option 2: TypeScript + Phaser 3.**
 
-The C# codebase is clean, modestly sized (~15 entity types, well-separated concerns), and the core logic translates mechanically to TypeScript. All level data (TMX), textures (PNG), and audio (WAV) transfer without conversion. Phaser 3's native Tiled support directly replaces TiledSharp. The Vercel deploy is a trivial `vite build` → static folder — no server runtime required.
+The C# codebase is clean, modestly sized (~15 entity types, well-separated concerns), and the core logic translates mechanically to TypeScript. PNG textures and WAV audio transfer without conversion. TMX level files require a one-time export to Tiled JSON format (via Tiled CLI or Tiled app) — a minor pre-processing step, not a blocker. Phaser 3's Tiled JSON loader directly replaces TiledSharp. The Vercel deploy is a trivial `vite build` → static folder — no server runtime required.
 
 Option 1 (MonoGame WASM) is technically possible but front-loaded with toolchain debt: the project uses MonoGame v3.0 with non-NuGet references, two removed namespaces (`Storage`, `GamerServices`), a compiled binary font (`Arial.xnb`), and an old local TiledSharp DLL. Clearing all of that before touching the browser target would consume the same effort as the TypeScript port, without the browser-native ergonomics. It also carries ongoing maintenance risk: MonoGame WASM support lags desktop and has limited community tooling.
 
@@ -184,3 +189,7 @@ These must be resolved via spike before committing to a path:
 6. **Vercel build command** — Trivial for Option 2 (`vite build`, output `dist/`). For Option 1 (WASM), the MonoGame WASM build produces a Blazor host — confirm the static output from `dotnet publish` can be served from Vercel without a server runtime. Expected answer: yes, Blazor WASM publishes as static files.
 
 7. **Gamepad API in browser** — The Gamepad Web API requires HTTPS and a user gesture before `navigator.getGamepads()` returns a device. Phaser handles this, but test with an actual gamepad during the Phaser spike.
+
+8. **TMX → JSON batch conversion workflow** — Does a Tiled CLI command (`tiled --export-map json`) exist in the target environment? Should export scripts live in the repo? What is the re-export process when levels are edited in Tiled? This workflow must be defined before level authoring continues.
+
+9. **Delta-time physics refactor scope** — What is the full scope of decoupling physics from `count++` integer ticks? Does it touch every entity class? Must be assessed and scoped before the 3–6 week estimate is trusted.

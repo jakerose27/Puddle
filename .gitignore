@@ -169,3 +169,7 @@ $RECYCLE.BIN/
 .squad/.scratch/
 # Squad: SubSquad activation file (local to this machine)
 .squad-workstream
+# Web scaffold
+web/node_modules/
+web/dist/
+web/vite.config.js
