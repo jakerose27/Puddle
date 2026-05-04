@@ -152,3 +152,35 @@ Dallas evaluated three options against the hard blockers and medium-complexity i
 ### Key Phaser 3 pattern: cross-texture animations
 Phaser 3 `anims.create()` frames array supports `{ key: 'texture-key', frame: 0 }` — you can have animations that reference different texture keys in the same sequence. When the animation reaches such a frame, Phaser automatically calls `setTexture()` on the sprite. This means you can define `idle`, `walk`, and `jump` as separate animations on different sprite sheets and switch between them cleanly with `play('anim-key', true)`. **Do NOT mix `setTexture()` manual calls with animation playback** — let the animation manager own the texture state.
 
+
+---
+
+## 2026-05-04 — Scribe: Level 1 Polish Milestone (Ripley contributions)
+
+**Session Date:** 2026-05-03  
+**Session Milestone:** Level 1 fully polished and playable
+
+### Player Animation States (commit 4758128)
+
+✅ Three-state animation machine: `idle`, `walk`, `jump`  
+✅ Real sprite sheets from `Content/PC/` integrated  
+✅ Direction flip on left/right input (scaleX = ±1)  
+✅ Smooth state transitions, no glitches  
+✅ All states tested in gameplay loop  
+
+### Integration with Polish Pass
+
+- Animations enable visual feedback (player movement clarity)
+- Compatible with death/respawn system (animations pause on death)
+- Complements HUD display, camera follow, and physics tuning
+- Sets foundation for future Level 2+ content
+
+### Technical Notes
+
+- Animation state driven by `fixedUpdate()` physics state
+- Sprite sheet keys: `player-stand` (idle), `player-walk` (walk), `player-jump` (jump)
+- Phaser `anims.create()` handles texture transitions automatically
+- Performance: negligible overhead, 60 FPS stable
+
+**Status:** Shipped and tested. Level 1 playable milestone achieved.
+

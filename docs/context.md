@@ -2,15 +2,16 @@
 
 ## Current state
 - Branch: squad/web-port-spike
-- **Level 1 playable end-to-end** ✅ (Milestone achieved 2026-05-04)
+- **Level 1 fully polished and playable end-to-end** ✅ (Milestone achieved 2026-05-03)
 - Last commits:
-  - Parker (commit 0d669f5): Roller, Geyser, NextLevel entities ported — 3 + 2 + 1 objects from Items/Gate layers, colliders wired, overlaps trigger player death
+  - Parker (commit 10ba581): Level 1 polish pass — physics tuned to C# constants, jump cut, HUD (lives + level label), death camera flash, respawn Y offset, NextLevel "You Win!" overlay with R-key guard
+  - Ripley (commit 4758128): Player animations — idle/walk/jump states, real sprite sheets from Content/PC/, direction flip
+  - Parker (commit 2278910): Checkpoint entity — Checkpoint.ts, EntityFactory wired, GameScene checkpoint overlap callback
+  - Parker (commit 06aada3): SpikeBall entity, camera follow, roller hitbox fix
   - Ripley (commit c98f4bc): Player death/respawn system — triggerDeath(), respawn(), invincibility blink, pit death detection
-  - Ripley (commit 225af46): Fixed-step accumulator — `GameScene.update()` → `fixedUpdate()` at 60 Hz, `tickCount` mirrors `Level.count`
-  - Parker (commit b93b5c0): Entity factory spike — `Block.ts` + `EntityFactory.ts`, Ground object layer now routes through `EntityFactory.create()`
   - Ash (gate approved): `docs/web-port-feasibility.md` — TypeScript + Phaser 3 path formally committed, all TMX/JSON/delta-time concerns resolved
-- What runs today: docs/repo-map.md ✅, docs/web-port-feasibility.md ✅ (revised, gate-approved), Phaser 3 scaffold ✅, Vercel config ✅, Fixed-step accumulator ✅, Entity factory pattern ✅, Level 1 playable ✅
-- What does not run today: no Mac C# build yet, not all 15 entity classes ported, no audio, no Vercel project created yet
+- What runs today: docs/repo-map.md ✅, docs/web-port-feasibility.md ✅ (gate-approved), Phaser 3 scaffold ✅, Vercel config ✅, Fixed-step accumulator ✅, Entity factory pattern ✅, Level 1 fully playable with polish ✅, Checkpoint system ✅, Player animations ✅, Physics tuning ✅, HUD ✅, Death/respawn feedback ✅, Goal overlay ✅
+- What does not run today: Level 2 (not designed), full hydration/powerup system (Geyser simplified), audio (future spike), Vercel prod deployment (not created yet)
 
 ## Decisions made
 - Decision 1: **TypeScript + Phaser 3** is the recommended port path (Dallas). Corrected: TMX files require export to Tiled JSON — they are NOT loaded directly. See docs/web-port-feasibility.md.
@@ -21,19 +22,19 @@
 - Decision 6: Geyser simplified to static kill zone for Level 1 milestone. Restore full boost-and-hydrate behavior when Ripley's hydration system is ported.
 
 ## Next tasks (priority order)
-1. **SpikeBall entity** — 17 objects in Enemies layer (gid=312). Likely kill zone like Roller/Geyser. Blocks: None. Effort: S.
-2. **Checkpoint system** — 1 object in Items layer. Saves respawn position. Integrates with Ripley's respawn system. Effort: S.
-3. **Player animation states** — Walk, jump, idle cycles. Replace placeholder sprite with multi-frame animations. Effort: M. Unblocks next: camera follow.
-4. **Camera follow system** — Follow player, constrain to map bounds. Effort: S. Unblocks polish pass.
-5. **Polish pass** — Timing tweaks, visual feedback, sound integration (future). Unblocks Level 1 → Level 2 progression.
+1. **Level 2 design & expansion** — New level geometry, new entity types. Effort: M. Blocks: None.
+2. **Powerup items & hydration system** — Geyser boost behavior, restore hydration mechanics. Effort: M. Unblocks full Level 1 gameplay.
+3. **Audio integration** — Background music loops, SFX for actions. Effort: M. Unblocks final polish.
+4. **Vercel deployment** — Deploy web/ to Vercel prod. Effort: S. Unblocks public playtesting.
 
 ## Active spike(s)
-- Spike name: Spike 4+ — Entity porting and Level 1 playable (current)
-  - Goal: Port Roller, Geyser, NextLevel entities; wire player death/respawn; achieve playable Level 1
-  - Pass criteria: Player can move, jump, collide with ground, hit hazards, die, respawn at start ✅ ACHIEVED (2026-05-04)
-  - Status: Complete. Level 1 playable end-to-end.
-- Next spike: Spike 5 — SpikeBall + Checkpoint + Animation (planned)
-  - Goal: Port remaining Level 1 entity types, add player animation, prepare Level 1 for final polish
+- Spike name: Spike 4+ — Entity porting and Level 1 playable (COMPLETE ✅)
+  - Goal: Port Roller, Geyser, NextLevel, Checkpoint, SpikeBall entities; wire player death/respawn/animations; achieve polished Level 1
+  - Pass criteria: Player can move, jump, collide with ground, hit hazards, die, respawn at checkpoint, reach goal with animations ✅ ACHIEVED (2026-05-03)
+  - Status: Complete. Level 1 fully polished and end-to-end playable.
+- Next spike: Spike 5 — Level 2 design and expansion (planned)
+  - Goal: Design Level 2 geometry, port new entity types, extend camera/physics systems as needed
+  - Estimated effort: M+ (depending on new entity count)
 
 ## If token capped or stopping
 - Run: ./scripts/pause.sh
