@@ -3,6 +3,7 @@ import { EntityFactory } from '../entities/EntityFactory';
 import type { TiledObject } from '../entities/Block';
 import { Roller } from '../entities/Roller';
 import { SpikeBall } from '../entities/SpikeBall';
+import { Checkpoint } from '../entities/Checkpoint';
 
 const PLAYER_SPEED = 200; // px/sec
 const TILE_SIZE = 32;
@@ -13,6 +14,7 @@ export class GameScene extends Phaser.Scene {
   private enemies!: Phaser.Physics.Arcade.Group;
   private hazards!: Phaser.Physics.Arcade.StaticGroup;
   private gates!: Phaser.Physics.Arcade.StaticGroup;
+  private checkpoints!: Phaser.Physics.Arcade.StaticGroup;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private playerDead: boolean = false;
   private hurtFlashTimer: number = 0;
@@ -45,6 +47,10 @@ export class GameScene extends Phaser.Scene {
       frameWidth: TILE_SIZE,
       frameHeight: TILE_SIZE,
     });
+    this.load.spritesheet('player-jump', 'assets/images/PC/jump.png', {
+      frameWidth: TILE_SIZE,
+      frameHeight: TILE_SIZE,
+    });
 
     // Entity sprites
     this.load.spritesheet('roller', 'assets/images/roller.png', {
@@ -53,6 +59,7 @@ export class GameScene extends Phaser.Scene {
     });
     this.load.image('geyser', 'assets/images/geyser.png');
     this.load.image('spikeball', 'assets/images/Enemies/spikeball.png');
+    this.load.image('checkpoint', 'assets/images/checkpoint.png');
   }
 
   create(): void {
@@ -91,6 +98,7 @@ export class GameScene extends Phaser.Scene {
     this.enemies = this.physics.add.group();
     this.hazards = this.physics.add.staticGroup();
     this.gates = this.physics.add.staticGroup();
+    this.checkpoints = this.physics.add.staticGroup();
 
     // Items layer contains Rollers, Geysers, and Checkpoints.
     const itemsLayer = map.getObjectLayer('Items');
@@ -101,6 +109,7 @@ export class GameScene extends Phaser.Scene {
           enemies: this.enemies,
           hazards: this.hazards,
           gates: this.gates,
+          checkpoints: this.checkpoints,
         });
       }
     }
@@ -114,6 +123,7 @@ export class GameScene extends Phaser.Scene {
           enemies: this.enemies,
           hazards: this.hazards,
           gates: this.gates,
+          checkpoints: this.checkpoints,
         });
       }
     }
@@ -127,6 +137,7 @@ export class GameScene extends Phaser.Scene {
           enemies: this.enemies,
           hazards: this.hazards,
           gates: this.gates,
+          checkpoints: this.checkpoints,
         });
       }
     }
@@ -145,12 +156,28 @@ export class GameScene extends Phaser.Scene {
     this.spawnX = this.player.x;
     this.spawnY = this.player.y;
 
-    // Walk animation
+    // Idle — single frame from stand.png
+    this.anims.create({
+      key: 'idle',
+      frames: [{ key: 'player-stand', frame: 0 }],
+      frameRate: 1,
+      repeat: -1,
+    });
+
+    // Walk — 4 frames at 8 fps, loops
     this.anims.create({
       key: 'walk',
       frames: this.anims.generateFrameNumbers('player-walk', { start: 0, end: 3 }),
       frameRate: 8,
       repeat: -1,
+    });
+
+    // Jump — 3 frames, plays once and holds the last frame
+    this.anims.create({
+      key: 'jump',
+      frames: this.anims.generateFrameNumbers('player-jump', { start: 0, end: 2 }),
+      frameRate: 8,
+      repeat: 0,
     });
 
     // Collide player with ground blocks
@@ -159,10 +186,11 @@ export class GameScene extends Phaser.Scene {
     // Enemies stand on ground
     this.physics.add.collider(this.enemies, this.ground);
 
-    // Enemy / hazard / gate overlaps
+    // Enemy / hazard / gate / checkpoint overlaps
     this.physics.add.overlap(this.player, this.enemies, this.onPlayerHitEnemy, undefined, this);
     this.physics.add.overlap(this.player, this.hazards, this.onPlayerHitHazard, undefined, this);
     this.physics.add.overlap(this.player, this.gates, this.onPlayerReachedGate, undefined, this);
+    this.physics.add.overlap(this.player, this.checkpoints, this.onCheckpointReached, undefined, this);
 
     // Cursor keys
     this.cursors = this.input.keyboard!.createCursorKeys();
@@ -233,19 +261,24 @@ export class GameScene extends Phaser.Scene {
 
     const onGround = body.blocked.down;
 
-    // Horizontal movement
+    // Horizontal movement (always applied, even while airborne)
     if (this.cursors.left.isDown) {
       this.player.setVelocityX(-PLAYER_SPEED);
       this.player.setFlipX(true);
-      if (onGround) this.player.play('walk', true);
     } else if (this.cursors.right.isDown) {
       this.player.setVelocityX(PLAYER_SPEED);
       this.player.setFlipX(false);
-      if (onGround) this.player.play('walk', true);
     } else {
       this.player.setVelocityX(0);
-      this.player.setTexture('player-stand');
-      this.player.anims.stop();
+    }
+
+    // Animation state machine — airborne > walking > idle
+    if (!onGround) {
+      this.player.play('jump', true);
+    } else if (this.cursors.left.isDown || this.cursors.right.isDown) {
+      this.player.play('walk', true);
+    } else {
+      this.player.play('idle', true);
     }
 
     // Jump — up arrow or space, only when grounded
@@ -259,6 +292,16 @@ export class GameScene extends Phaser.Scene {
         child.update(this.tickCount);
       }
     });
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private onCheckpointReached(_player: any, checkpoint: any): void {
+    const cp = checkpoint as Checkpoint;
+    if (cp.activated) return;
+    // Update respawn position to this checkpoint's world coords
+    this.spawnX = cp.x;
+    this.spawnY = cp.y;
+    cp.activate();
   }
 
   private onPlayerHitEnemy(): void {
