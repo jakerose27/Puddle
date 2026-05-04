@@ -14,6 +14,13 @@ export class GameScene extends Phaser.Scene {
   private gates!: Phaser.Physics.Arcade.StaticGroup;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private playerDead: boolean = false;
+  private hurtFlashTimer: number = 0;
+  private readonly HURT_FLASH_DURATION = 60; // ticks (~1 second at 60Hz)
+  private invincible: boolean = false;
+  private invincibleTimer: number = 0;
+  private readonly INVINCIBLE_DURATION = 120; // 2 seconds
+  private spawnX: number = 0;
+  private spawnY: number = 0;
 
   private accumulator: number = 0;
   private readonly FIXED_STEP_MS: number = 1000 / 60; // 16.667ms = 60 Hz
@@ -120,6 +127,9 @@ export class GameScene extends Phaser.Scene {
     this.player.setCollideWorldBounds(true);
     this.player.setDepth(1);
 
+    this.spawnX = this.player.x;
+    this.spawnY = this.player.y;
+
     // Walk animation
     this.anims.create({
       key: 'walk',
@@ -170,6 +180,41 @@ export class GameScene extends Phaser.Scene {
    */
   private fixedUpdate(): void {
     const body = this.player.body as Phaser.Physics.Arcade.Body;
+
+    // Pit death — player fell off the bottom of the world
+    if (this.player.y > this.physics.world.bounds.height + 200) {
+      if (!this.playerDead) {
+        this.triggerDeath();
+      }
+    }
+
+    // Death timer — flash red then respawn
+    if (this.playerDead) {
+      if (this.hurtFlashTimer > 0) {
+        this.hurtFlashTimer--;
+        // Alternate tint every 6 ticks for a flash effect
+        if (this.hurtFlashTimer % 6 < 3) {
+          this.player.setTint(0xff0000);
+        } else {
+          this.player.clearTint();
+        }
+      } else {
+        this.respawn();
+      }
+      return; // Skip all movement/input during death
+    }
+
+    // Invincibility blink — alpha oscillates every 6 ticks
+    if (this.invincible) {
+      if (this.invincibleTimer > 0) {
+        this.invincibleTimer--;
+        this.player.setAlpha(this.invincibleTimer % 12 < 6 ? 0.3 : 1.0);
+      } else {
+        this.invincible = false;
+        this.player.setAlpha(1);
+      }
+    }
+
     const onGround = body.blocked.down;
 
     // Horizontal movement
@@ -201,11 +246,37 @@ export class GameScene extends Phaser.Scene {
   }
 
   private onPlayerHitEnemy(): void {
-    this.playerDead = true;
+    if (!this.invincible && !this.playerDead) {
+      this.triggerDeath();
+    }
   }
 
   private onPlayerHitHazard(): void {
+    if (!this.invincible && !this.playerDead) {
+      this.triggerDeath();
+    }
+  }
+
+  private triggerDeath(): void {
     this.playerDead = true;
+    this.hurtFlashTimer = this.HURT_FLASH_DURATION;
+    const body = this.player.body as Phaser.Physics.Arcade.Body;
+    body.setVelocity(0, 0);
+    // Partially cancel world gravity (600) so the player floats briefly
+    body.setGravityY(-500);
+    this.player.setTint(0xff0000);
+  }
+
+  private respawn(): void {
+    this.playerDead = false;
+    this.invincible = true;
+    this.invincibleTimer = this.INVINCIBLE_DURATION;
+    this.player.setPosition(this.spawnX, this.spawnY);
+    const body = this.player.body as Phaser.Physics.Arcade.Body;
+    body.setVelocity(0, 0);
+    body.setGravityY(0); // restore normal gravity
+    this.player.clearTint();
+    this.player.setAlpha(1);
   }
 
   private onPlayerReachedGate(): void {
