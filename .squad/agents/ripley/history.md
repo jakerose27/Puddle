@@ -54,6 +54,17 @@ Dallas evaluated three options against the hard blockers and medium-complexity i
 - **Spiral-of-death risk**: no tick cap on catchup — acceptable at current scope, revisit if sustained lag frames appear in testing.
 - **Decision record**: `.squad/decisions/inbox/ripley-fixed-step.md`
 
+### 2026-05-03 — Player Hurt/Death/Respawn (commit c98f4bc)
+
+- **`triggerDeath()`** — sets `playerDead`, starts 60-tick flash timer, zeroes velocity, sets `body.setGravityY(-500)` to partially cancel world gravity (600) for a brief float, applies red tint.
+- **`respawn()`** — clears death state, teleports to `spawnX/spawnY`, restores gravity to 0 (inheriting world gravity), starts 120-tick invincibility window with alpha blink.
+- **Death blocks input** — `fixedUpdate()` returns early if `playerDead` is true; rollers still tick but player cannot move.
+- **Pit detection** — `player.y > world.bounds.height + 200` triggers death in `fixedUpdate()` before the movement block.
+- **Invincibility blink** — `invincibleTimer % 12 < 6` alternates alpha 0.3/1.0 every 6 ticks (~10Hz blink at 60Hz).
+- **`body.setGravityY()` is additive** — sets *additional* gravity on top of world gravity. To float: use a negative value smaller than world gravity (e.g. -500 with world=600 gives net 100 downward).
+- **`spawnX/spawnY` captured after `player.setPosition()`** — not from `startX/startY` directly, ensuring the saved point reflects the actual Phaser sprite position.
+- Build verified clean (`tsc && vite build`). Pushed to `squad/web-port-spike`.
+
 ### 2026-05-03 — Orchestration & Decisions Merge
 
 **Parker's Spike 2 work (parallel):**
@@ -67,3 +78,48 @@ Dallas evaluated three options against the hard blockers and medium-complexity i
 - Fixed-step accumulator (Option 3B) is now formally recommended in decisions.md
 - Next blocker: confirm accumulator works in C# prototype or TypeScript before entity porting
 - All 5 browser risks (rAF not locked to 60 Hz, physics calibration, AI cadence, collision, Draw/Update split) will be mitigated by accumulator pattern
+
+---
+
+## 2026-05-04 — Scribe: Level 1 Playable Milestone
+
+**Team shipped Level 1 playable end-to-end.**
+
+### Ripley Spike 3 Contribution (Commit c98f4bc)
+
+- Player hurt/death/respawn system complete
+- triggerDeath() and respawn() methods wired
+- Invincibility blink animation on respawn (1.5s)
+- Pit death detection (y < 0)
+
+### Integration with Parker's Entities
+
+- Death trigger fires on overlap with Roller, Geyser entities
+- Respawn resets player to spawn point with invincibility
+- Pit death (falling off level) detected and triggers respawn
+- Smooth player flow: move → hit hazard → death animation → respawn with invincibility
+
+### Technical Details
+
+- Input blocked during death (fixedUpdate() returns early if playerDead)
+- Invincibility blink uses modulo 12 ticks for ~10Hz at 60 Hz tick rate
+- spawnX/spawnY captured after player.setPosition() to ensure Phaser position
+- Pit detection: y > world.bounds.height + 200 triggers death
+
+### Testing & Verification
+
+✅ Player dies on Roller contact  
+✅ Player dies on Geyser contact  
+✅ Respawn at spawn point works  
+✅ Invincibility blink prevents re-death during period  
+✅ Pit death functional  
+✅ Level playable end-to-end  
+✅ Build verified clean  
+
+### Next Priority
+
+- Player animation states (walk, jump, idle cycle)
+- SpikeBall entity (pending Parker port)
+- Checkpoint system to save respawn position
+
+**Status:** Death/respawn system shipped and tested. Level 1 playable milestone achieved. Ready for animation and checkpoint work.

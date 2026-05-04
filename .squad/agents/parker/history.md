@@ -174,3 +174,41 @@ Key files: Game1.cs (game loop), Program.cs (entry point), Level.cs, Controls.cs
 - This unblocks all downstream entity translation work (player, enemies, AI, collision)
 - No entity logic changes needed — only encapsulate ticks in accumulator loop
 - Feasibility doc now reflects physics dependency as a Medium risk in Option 2
+
+---
+
+## 2026-05-04 — Scribe: Level 1 Playable Milestone
+
+**Team shipped Level 1 playable end-to-end.**
+
+### Parker Spike 4 Contribution (Commit 0d669f5)
+
+- Ported Roller.ts, Geyser.ts, NextLevel.ts entities
+- Extended EntityFactory with rollers, hazards, gates groups
+- Wired collider + overlap system in GameScene
+- Documented architectural decisions on Tiled y-coordinate conventions
+
+### Integration Status
+
+- Roller: 3 objects in Items layer, moving platforms, 4-frame animation
+- Geyser: 2 objects in Items layer, kill zones (simplified for milestone)
+- NextLevel: 1 object in Items layer, level exit
+- All entities receive colliders and overlap callbacks from GameScene
+- Player death/respawn system fully integrated (Ripley's work)
+
+### Key Architectural Decisions
+
+1. Tiled layer placement: Roller/Geyser live in Items layer, not Enemies
+2. Dual y-coordinate conventions: tile objects (bottom-edge) vs. rectangle objects (top-left)
+3. Geyser simplified to static kill zone (full hydration boost pending future)
+4. EntityGroups interface extended with optional fields for backward compatibility
+5. Roller animation self-registration (idempotent on scene entry)
+
+### Next Priority
+
+- SpikeBall entity (17 objects in Enemies layer)
+- Checkpoint system (1 object in Items)
+- Player animation cycle (walk, jump, idle)
+- Camera follow system
+
+**Status:** Level 1 milestone achieved. Entities wired, colliders operational, death/respawn loop functional.

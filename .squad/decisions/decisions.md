@@ -187,3 +187,65 @@ Before porting any entity: confirm the fixed-step loop works in the C# prototype
 ### Reference
 
 Full analysis: `docs/physics-delta-time-scope.md`
+
+---
+
+# Architectural Decisions — Roller, Geyser, NextLevel Entity Port
+
+**Author:** Parker (Web/Deploy)  
+**Date:** 2026-05-03T21:46:12.172-07:00  
+**Commit:** `0d669f5`  
+**Branch:** `squad/web-port-spike`
+
+---
+
+## Decision 1: Tiled layer placement for Rollers and Geysers
+
+**Finding:** Rollers (`Puddle.Roller`) and Geysers (`Puddle.Geyser`) both live in the **Items** object layer, not in a dedicated Enemies layer. The `Enemies` layer contains only `Puddle.SpikeBall` objects. The `Gate` layer is empty in Level1-1.json.
+
+**Implication:** Any future entity creation that reads Tiled layers must consult the actual JSON rather than assuming layer-name conventions match C# class names. When porting new entity types, always inspect the JSON first.
+
+---
+
+## Decision 2: Two y-coordinate conventions coexist in the same level JSON
+
+Tiled JSON has two object placement conventions, both present in Level1-1.json:
+
+| Object type | Has `gid`? | Tiled y semantics | Center y formula |
+|---|---|---|---|
+| Tile object (Roller, Block) | Yes | Bottom edge of tile | `obj.y - height/2` |
+| Rectangle object (Geyser, NextLevel) | No | Top-left corner | `obj.y + height/2` |
+
+**Decision:** Each entity's `fromTiledObject` is responsible for applying the correct formula. This is documented in the source comment of each entity class. GameScene does not apply any y correction — it delegates entirely to the factory method.
+
+---
+
+## Decision 3: Geyser behavioral simplification
+
+**C# behavior:** Geyser applies an upward velocity boost (`yVel = -5 px/tick`) and refills player hydration on contact. It is a neutral/positive hazard, not lethal.
+
+**Web port:** Implemented as a static kill zone (`playerDead = true`) per task spec. This is a deliberate simplification for the Level 1 playable milestone.
+
+**Future:** If Ripley's death/hydration system is ported, Geyser should be revisited to restore the boost-and-hydrate behavior. The current implementation is noted with a TODO comment in `Geyser.ts`.
+
+---
+
+## Decision 4: EntityGroups interface extension strategy
+
+New group types were added to `EntityGroups` as **optional fields** (`rollers?`, `hazards?`, `gates?`). This preserves backward compatibility with the Ground layer loop which only passes `{ ground }`. Creators check for the relevant group and return `null` if it isn't provided, consistent with the "unknown type → warn, don't throw" contract.
+
+**If EntityGroups exceeds ~8 fields:** extract to a shared `types.ts` in `web/src/entities/`.
+
+---
+
+## Decision 5: Roller animation self-registration
+
+Roller's constructor calls `scene.anims.create({ key: 'roller-roll', ... })` guarded by `!scene.anims.exists('roller-roll')`. This means the animation is registered once on first Roller construction and is a no-op for subsequent Rollers. This avoids requiring GameScene to know about entity-internal animation keys while staying safe against duplicate registration errors.
+
+**Tradeoff:** Slight coupling between entity class and asset key name. Acceptable for this codebase scale.
+
+---
+
+## Open question for Dallas/team
+
+The `Puddle.SpikeBall` type (17 objects in the Enemies layer, gid=312) and `Puddle.Checkpoint` (1 object in Items) are the next blocking entity types for Level 1 playability. SpikeBall likely kills the player on contact (same as Roller); Checkpoint saves spawn position. Should these be ported in the same pattern (dynamic group + overlap kill), or does Ripley's upcoming death system gate that work?
