@@ -32,3 +32,13 @@ Key files: Game1.cs (game loop), Program.cs (entry point), Level.cs, Controls.cs
 
 Dallas evaluated three options against the hard blockers and medium-complexity issues identified in the repo-map. MonoGame WASM is blocked by toolchain debt (v3.0 upgrade, deprecated namespaces, binary font, vendored TiledSharp). TypeScript + Phaser 3 is recommended because all assets (TMX, PNG, WAV) transfer without conversion, Phaser 3 reads TMX natively, C# entity logic is clean and translates mechanically to TypeScript, and Vercel deploy is a standard `vite build`. Before spiking: confirm Phaser 3 parses these specific TMX v1.0 object layers and identify exact `type` attribute format.
 
+
+### 2026-05-03 — delta-time physics scope task
+
+- **`Level.count` is the universal frame timer** — every animation, AI fire cadence, hurt flash, and message display in the codebase is driven by `count++` in `Level.Update()`. It is incremented every frame with no deltaTime involvement.
+- **Physics is 100% frame-coupled** — gravity (0.35), maxFallSpeed (10), playerSpeed (3), enemySpeed (2) are all px/frame. No entity multiplies velocity by elapsed time.
+- **One exception**: Player walk animation and shoot/jump cooldowns use `gameTime.TotalGameTime.TotalMilliseconds` — these are already wall-clock correct and need no changes.
+- **Fixed-step accumulator is the minimal correct fix** — adding a `while (accumulator >= FIXED_STEP)` loop in `Game1.Update()` makes `Level.count` deterministic at 60 ticks/s regardless of display refresh rate. Zero changes to entity logic, physics constants, or animation expressions.
+- **Intro slide timer is in `Draw()`, not `Update()`** — should be moved as part of the accumulator PR.
+- **Top collision risk**: `Convert.ToInt32(xVel/yVel)` movement without sub-stepping could tunnel through 32-px tiles at velocities >16 px/frame. Current max velocities are safe at 60 fps fixed step.
+- **Report location**: `docs/physics-delta-time-scope.md`
