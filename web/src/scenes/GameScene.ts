@@ -121,6 +121,7 @@ export class GameScene extends Phaser.Scene {
     const body = this.player.body as Phaser.Physics.Arcade.Body;
     const onGround = body.blocked.down;
 
+    // Horizontal movement
     if (this.cursors.left.isDown) {
       this.player.setVelocityX(-PLAYER_SPEED);
       this.player.setFlipX(true);
@@ -133,6 +134,11 @@ export class GameScene extends Phaser.Scene {
       this.player.setVelocityX(0);
       this.player.setTexture('player-stand');
       this.player.anims.stop();
+    }
+
+    // Jump — up arrow or space, only when grounded
+    if ((this.cursors.up.isDown || this.cursors.space.isDown) && onGround) {
+      this.player.setVelocityY(-400);
     }
   }
 }
