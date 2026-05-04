@@ -12,7 +12,7 @@ new Phaser.Game({
   physics: {
     default: 'arcade',
     arcade: {
-      gravity: { x: 0, y: 600 },
+      gravity: { x: 0, y: 1260 }, // 0.35 px/tick² × 60² = 1260 px/s² (matches Player.cs)
       debug: false,
     },
   },

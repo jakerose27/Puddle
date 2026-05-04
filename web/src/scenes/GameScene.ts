@@ -5,8 +5,11 @@ import { Roller } from '../entities/Roller';
 import { SpikeBall } from '../entities/SpikeBall';
 import { Checkpoint } from '../entities/Checkpoint';
 
-const PLAYER_SPEED = 200; // px/sec
+const PLAYER_SPEED = 240; // px/sec — matches Player.cs speed≈4px/tick × 60
+const JUMP_VELOCITY = -600; // px/sec — matches Player.cs jumpHeight=10px/tick × 60
+const MAX_FALL_SPEED = 600; // px/sec — matches Player.cs maxFallSpeed=10px/tick × 60
 const TILE_SIZE = 32;
+const STARTING_LIVES = 5; // Player.cs: MAX_LIVES = 5
 
 export class GameScene extends Phaser.Scene {
   private player!: Phaser.Physics.Arcade.Sprite;
@@ -24,6 +27,12 @@ export class GameScene extends Phaser.Scene {
   private readonly INVINCIBLE_DURATION = 120; // 2 seconds
   private spawnX: number = 0;
   private spawnY: number = 0;
+  private lives: number = STARTING_LIVES;
+  private jumpKeyHeld: boolean = false;
+  private gateTriggered: boolean = false;
+
+  private livesText!: Phaser.GameObjects.Text;
+  private levelText!: Phaser.GameObjects.Text;
 
   private accumulator: number = 0;
   private readonly FIXED_STEP_MS: number = 1000 / 60; // 16.667ms = 60 Hz
@@ -152,6 +161,7 @@ export class GameScene extends Phaser.Scene {
     );
     this.player.setCollideWorldBounds(true);
     this.player.setDepth(1);
+    (this.player.body as Phaser.Physics.Arcade.Body).setMaxVelocityY(MAX_FALL_SPEED);
 
     this.spawnX = this.player.x;
     this.spawnY = this.player.y;
@@ -199,6 +209,23 @@ export class GameScene extends Phaser.Scene {
     this.physics.world.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
     this.cameras.main.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
     this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
+
+    // HUD — fixed to camera, depth 10 so it renders above everything
+    const hudStyle = {
+      fontSize: '20px',
+      color: '#ffffff',
+      stroke: '#000000',
+      strokeThickness: 4,
+    };
+    this.livesText = this.add
+      .text(12, 12, `❤️ x${this.lives}`, hudStyle)
+      .setScrollFactor(0)
+      .setDepth(10);
+    this.levelText = this.add
+      .text(this.scale.width - 12, 12, 'Level 1-1', hudStyle)
+      .setOrigin(1, 0)
+      .setScrollFactor(0)
+      .setDepth(10);
   }
 
   update(_time: number, delta: number): void {
@@ -283,7 +310,21 @@ export class GameScene extends Phaser.Scene {
 
     // Jump — up arrow or space, only when grounded
     if ((this.cursors.up.isDown || this.cursors.space.isDown) && onGround) {
-      this.player.setVelocityY(-400);
+      this.player.setVelocityY(JUMP_VELOCITY);
+      this.jumpKeyHeld = true;
+    }
+
+    // Jump cut — release jump early while ascending for a shorter hop
+    if (this.jumpKeyHeld && !(this.cursors.up.isDown || this.cursors.space.isDown)) {
+      if (body.velocity.y < 0) {
+        body.setVelocityY(body.velocity.y / 2);
+      }
+      this.jumpKeyHeld = false;
+    }
+
+    // Reset jump key tracking when landing
+    if (onGround) {
+      this.jumpKeyHeld = false;
     }
 
     // Tick each enemy that has per-tick logic
@@ -321,38 +362,67 @@ export class GameScene extends Phaser.Scene {
     this.hurtFlashTimer = this.HURT_FLASH_DURATION;
     const body = this.player.body as Phaser.Physics.Arcade.Body;
     body.setVelocity(0, 0);
-    // Partially cancel world gravity (600) so the player floats briefly
-    body.setGravityY(-500);
+    // Partially cancel world gravity (1260) so the player floats briefly on death
+    body.setGravityY(-1160);
     this.player.setTint(0xff0000);
+    // Screen flash — red tint to signal death
+    this.cameras.main.flash(300, 255, 0, 0);
   }
 
   private respawn(): void {
     this.playerDead = false;
     this.invincible = true;
     this.invincibleTimer = this.INVINCIBLE_DURATION;
-    this.player.setPosition(this.spawnX, this.spawnY);
+    // Small upward Y offset to prevent spawning inside the floor on collision edge cases
+    this.player.setPosition(this.spawnX, this.spawnY - 8);
     const body = this.player.body as Phaser.Physics.Arcade.Body;
     body.setVelocity(0, 0);
     body.setGravityY(0); // restore normal gravity
     this.player.clearTint();
     this.player.setAlpha(1);
+    this.jumpKeyHeld = false;
+    // Decrement lives and update HUD
+    this.lives = Math.max(0, this.lives - 1);
+    this.livesText.setText(`❤️ x${this.lives}`);
   }
 
   private onPlayerReachedGate(): void {
+    if (this.gateTriggered) return;
+    this.gateTriggered = true;
+
     console.log('Level complete!');
-    // Remove this overlap so the overlay only fires once
-    this.physics.world.removeCollider(
-      this.physics.add.overlap(this.player, this.gates, this.onPlayerReachedGate, undefined, this)
-    );
+
+    // No Level 1-2 exists yet — show "You Win!" overlay and freeze the player
+    const body = this.player.body as Phaser.Physics.Arcade.Body;
+    body.setVelocity(0, 0);
+    body.setAllowGravity(false);
+    this.player.anims.stop();
+
     this.add
-      .text(this.cameras.main.centerX, this.cameras.main.centerY, 'LEVEL COMPLETE', {
+      .text(this.cameras.main.centerX, this.cameras.main.centerY, '🎉 YOU WIN!', {
         fontSize: '48px',
-        color: '#ffffff',
+        color: '#ffe066',
         stroke: '#000000',
         strokeThickness: 6,
       })
       .setOrigin(0.5)
       .setScrollFactor(0)
       .setDepth(10);
+
+    this.add
+      .text(this.cameras.main.centerX, this.cameras.main.centerY + 56, 'Press R to replay', {
+        fontSize: '24px',
+        color: '#ffffff',
+        stroke: '#000000',
+        strokeThickness: 4,
+      })
+      .setOrigin(0.5)
+      .setScrollFactor(0)
+      .setDepth(10);
+
+    // R key restarts the scene
+    this.input.keyboard!.once('keydown-R', () => {
+      this.scene.restart();
+    });
   }
 }
