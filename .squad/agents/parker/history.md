@@ -11,6 +11,58 @@ Key files: Game1.cs (game loop), Program.cs (entry point), Level.cs, Controls.cs
 
 ## Learnings
 
+### Spike 4 — Roller, Geyser, NextLevel entity port (2026-05-03T21:46:12.172-07:00)
+
+**Commit:** `0d669f5` — `feat(web): port Roller, Geyser, NextLevel — Level 1 entities wired`
+
+**What changed:**
+- Created `web/src/entities/Roller.ts` — extends `Phaser.Physics.Arcade.Sprite`. Dynamic body, 4-frame walk animation from roller.png (128×32). Direction set from Tiled `left` property. Wall reversal via `body.blocked.left / right` checked in `update(tickCount)`. Self-registers animation key `'roller-roll'` on first construction (idempotent).
+- Created `web/src/entities/Geyser.ts` — wraps `Phaser.GameObjects.Rectangle` with a static physics body (same pattern as Block). Simplified from C# behavior (boost + hydration) to a static kill zone per task spec. Noted behavioral delta in source comments.
+- Created `web/src/entities/NextLevel.ts` — static rectangle zone with destination string read from Tiled object name. Gate layer is empty in Level1-1.json; wired and ready for future levels.
+- Updated `EntityFactory.ts` — extended `EntityGroups` interface with `rollers?`, `hazards?`, `gates?` (optional to preserve backward compat with Ground loop). Added registry entries for `Puddle.Roller`, `Puddle.Geyser`, `Puddle.NextLevel`.
+- Updated `GameScene.ts` — added `rollers`, `hazards`, `gates` groups; preloads roller spritesheet + geyser image; iterates Items and Gate layers; wires `collider(rollers, ground)` and three `overlap` callbacks; calls `roller.update(tickCount)` per fixed-tick.
+- Copied `Content/geyser.png` → `web/public/assets/images/geyser.png`.
+
+**Critical JSON findings (confirmed from Level1-1.json):**
+- Rollers AND Geysers are BOTH in the `Items` layer — NOT in an `Enemies` layer as initially assumed.
+- The `Enemies` layer contains only `Puddle.SpikeBall` objects (gid=312) — not yet ported.
+- The `Gate` layer is empty in Level 1 — NextLevel is wired but will produce no objects at runtime.
+- Roller objects have `gid: 313` → tile object convention → Tiled y = bottom edge → `centerY = obj.y - h/2`.
+- Geyser objects have no `gid` → rectangle object convention → Tiled y = top-left corner → `centerY = obj.y + h/2`.
+
+**C# behavioral deltas (documented in source):**
+- C# Geyser does NOT kill the player — it sends them upward (`yVel = -5`) and refills hydration. Web port simplifies to hazard kill zone per task spec.
+- C# Roller has a `collisionHeight = 8; spriteY += 12` tweak (hitbox near bottom of sprite). Web port uses the full 32×32 Arcade body for simplicity.
+- C# Roller uses `% 8` for 8-frame animation cycling; web port uses the 4-frame `roller.png` spritesheet (128×32) that was already in `web/public/assets/images/`.
+
+**Pattern confirmed:**
+- `Phaser.Physics.Arcade.Group` (from `this.physics.add.group()`) works cleanly as `Phaser.GameObjects.Group` type — it's a subclass.
+- Sprite-type entities (`Phaser.Physics.Arcade.Sprite`) call `scene.add.existing(this)` + `scene.physics.add.existing(this)` in their constructor to self-register with the scene and physics world.
+- Static zone entities follow the Block pattern: `scene.add.rectangle()` + `scene.physics.add.existing(rect, true)` + `group.add(rect)`.
+
+**Next entity classes to port:**
+1. `Puddle.SpikeBall` (Enemies layer, 17 objects, gid=312, spikeball.png available)
+2. `Puddle.Checkpoint` (Items layer, 1 object, checkpoint.png available)
+3. `Puddle.Pipe` (Pipe layer, 1 object)
+4. `Puddle.PowerUp` (Ground layer, a few objects)
+
+### Bug fix — Player jump missing after accumulator refactor (2026-05-03T21:36:33.205-07:00)
+
+**Root cause:** When Ripley's fixed-step accumulator refactor moved all simulation logic from `update()` into `fixedUpdate()`, the left/right movement block was carried over but the jump block was omitted entirely. There was no `cursors.up.isDown` check and no `setVelocityY(-400)` call anywhere in `fixedUpdate()`.
+
+**What was NOT broken (eliminated as suspects):**
+- `this.physics.add.collider(this.player, this.ground)` was present and correct.
+- `this.cursors` was initialized in `create()` — the cursor object survived the refactor.
+- `Block.fromTiledObject()` correctly converts Tiled bottom-left y to center (`cy = obj.y - h/2`) — blocks were physically placed correctly.
+- The static group was created, blocks added to it, and the collider registered against it — `body.blocked.down` was accurate.
+- Arcade physics gravity (y: 600) configured in `main.ts` — player fell normally.
+
+**Fix:** Added jump check at the bottom of `fixedUpdate()`, gated on `onGround` (`body.blocked.down`), accepting both up-arrow and space bar: `if ((this.cursors.up.isDown || this.cursors.space.isDown) && onGround) { this.player.setVelocityY(-400); }`
+
+**Commit:** `7f198f3` — `fix(web): restore player jump — collider/input wired after accumulator refactor`
+
+**Process lesson:** When refactoring moves a logic block (update→fixedUpdate), checklist every input+action pair. It's easy to transfer movement but forget the less-common action (jump). The fix was 4 lines; the diagnosis pattern was correct — read the full scene file first, not just the suspect area.
+
 ### Spike 3 — Entity factory: Block end-to-end (2026-05-03T21:28:40.544-07:00)
 
 **What changed:**
