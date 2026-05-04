@@ -118,8 +118,37 @@ Dallas evaluated three options against the hard blockers and medium-complexity i
 
 ### Next Priority
 
-- Player animation states (walk, jump, idle cycle)
+- Player animation states (walk, jump, idle cycle) ✅ DONE
 - SpikeBall entity (pending Parker port)
-- Checkpoint system to save respawn position
+- Checkpoint system to save respawn position ✅ DONE (by Parker, commit 2278910)
 
 **Status:** Death/respawn system shipped and tested. Level 1 playable milestone achieved. Ready for animation and checkpoint work.
+
+---
+
+## 2026-05-03 — Player Animation States (commit 4758128)
+
+### What was done
+- **Copied `jump.png`** from `Content/PC/` to `web/public/assets/images/PC/` — was missing from web assets.
+- **Added `player-jump` spritesheet** to `preload()` — 3 frames at 32×32px (96px wide source).
+- **Defined three animations:**
+  - `idle` — single frame from `player-stand` image, loops
+  - `walk` — 4 frames from `player-walk` spritesheet at 8fps, loops (already existed, cleaned up)
+  - `jump` — 3 frames from `player-jump` spritesheet at 8fps, play-once (holds last frame)
+- **Animation state machine** in `fixedUpdate()`:
+  - `!onGround` → play 'jump'
+  - grounded + left/right held → play 'walk'
+  - grounded + still → play 'idle'
+- **FlipX was already wired** — horizontal flip on left/right input was already correct from the death/respawn PR. No change needed.
+- **Horizontal movement decoupled from animation** — `setVelocityX()` is now applied regardless of ground state; animation block is separate.
+- **Fixed pre-existing TS error** in `onCheckpointReached` callback — Phaser's `ArcadePhysicsCallback` uses `any`-compatible params; old typed signature was wrong.
+
+### Asset info (from original C#)
+- `stand.png`: 32×32 — single frame idle
+- `walk.png`: 128×32 — 4 frames of 32×32 (walk cycle)
+- `jump.png`: 96×32 — 3 frames of 32×32 (jump ramp-up; C# used 2 frames via frameIndexX < 2*32)
+- C# walk used `gameTime.TotalGameTime.TotalMilliseconds / 128 % 4` for frame index — equivalent to ~8fps
+
+### Key Phaser 3 pattern: cross-texture animations
+Phaser 3 `anims.create()` frames array supports `{ key: 'texture-key', frame: 0 }` — you can have animations that reference different texture keys in the same sequence. When the animation reaches such a frame, Phaser automatically calls `setTexture()` on the sprite. This means you can define `idle`, `walk`, and `jump` as separate animations on different sprite sheets and switch between them cleanly with `play('anim-key', true)`. **Do NOT mix `setTexture()` manual calls with animation playback** — let the animation manager own the texture state.
+
