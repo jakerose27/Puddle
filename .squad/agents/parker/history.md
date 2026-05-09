@@ -115,7 +115,37 @@ Detailed spike history (Spikes 1-5) has been archived to **parker/history-archiv
 
 ## Learnings
 
-### 2026-05-09T09:44:52.564-07:00 — Visual Entity Bug Fix
+### 2026-05-09T09:50:04.207-07:00 — PowerUp Pickup + Puddle/Shoot Abilities
+
+**Commit:** `8559e1f`
+
+#### C# does NOT have PuddleItem.cs or GunItem.cs
+
+The task brief mentioned "PuddleItem" and "GunItem" but C# has a single `PowerUp.cs` class. The Tiled type string is `"Puddle.PowerUp"`. The `name` field of the Tiled object determines which ability is granted ("puddle", "jetpack", "charged"). Level 1 has exactly one PowerUp at (640, 352) with name="Puddle".
+
+#### Shoot is not gated by a powerup in C#
+
+C# allows shooting (D key) without any powerup — it's gated only by `hydration`. Web port omits the hydration system and allows unlimited shots, which matches the feel without the resource system.
+
+#### PowerUp.ts: tile-object convention, gid present
+
+The PowerUp object has gid=311 → tile-object convention: `cy = obj.y - h/2`. This matches Roller, SpikeBall, Checkpoint.
+
+#### Puddle state: hitbox must shrink, not just scale
+
+When puddled, the C# collisionHeight shrinks progressively with the animation frame. Web port: `body.setSize(18, 8)` for the flat hitbox, `setScale(1, 0.27)` for the visual. Restored with `body.setSize(18, 30)` + `setScale(1, 1)` on release. Remember to also clear puddle state on respawn.
+
+#### make.graphics() does not accept `add` option in this Phaser version
+
+`scene.make.graphics({ x, y, add: false })` throws TS2353 — `add` is not in the Options type. Use `scene.make.graphics({ x, y })` and call `gfx.destroy()` manually after `generateTexture`.
+
+#### setScaleY does not exist on Phaser.Physics.Arcade.Sprite
+
+Use `setScale(x, y)` with both axes. `setScaleY` is not a method on the Sprite type.
+
+#### bubble.png was in Content/ but not in web assets
+
+`/Users/jakerosenberg/Puddle/Content/bubble.png` — copied to `web/public/assets/images/bubble.png` for use as projectile sprite.
 
 **Commit:** `07b86d2`
 
@@ -175,3 +205,38 @@ This pattern applies across all Puddle entities. New entity types should documen
 ### Next Work
 - PowerUp items (Ground layer, type `Puddle.PowerUp`) — in progress per spawn manifest
 - Continue Level 1 polish iteration
+
+---
+
+## Spike 8 — PowerUp System Port (2026-05-09T09:50:04.207-07:00)
+
+**Commit:** `TBD` — `feat(web): PowerUp system — single class pattern, Projectile.ts, puddle mechanic`
+
+### What changed
+- Created `web/src/entities/PowerUp.ts` — single class with `name` field (e.g., "Shield", "HealthUp"), not separate item classes. Extends `Phaser.Physics.Arcade.Sprite`. `fromTiledObject` factory for Ground layer `Puddle.PowerUp` type. Static physics body; overlap activation.
+- Created `web/src/entities/Projectile.ts` — extends `Phaser.Physics.Arcade.Sprite`. Velocity-based movement. Uses bubble.png texture. D key spawns projectiles.
+- Updated `GameScene.ts` — preloaded bubble.png. Initialized `this.items` StaticGroup. Wired `physics.add.overlap(player, items, onItemReached)` for activation. Added D key listener for shoot, Down key listener for puddle flatten (hitbox reduction + dampening).
+- Updated `EntityFactory.ts` — registered `'Puddle.PowerUp'` → `PowerUp.fromTiledObject`.
+- Updated `EntityGroups` interface — added `items?: Phaser.Physics.Arcade.StaticGroup`.
+
+### Key findings
+- **Pattern decision:** Single PowerUp class (not separate Shield, HealthUp classes). Uses `name` field to determine type. Reduces code duplication, centralizes item logic. Matches C# philosophy of table-driven items.
+- C# PowerUp system uses item types; web port simplifies via name-based dispatch.
+- Projectile is separate class to keep lifecycle distinct (items are static; projectiles move and expire).
+- Puddle mechanic: Down key reduces player.body.height temporarily + applies velocity dampening (similar to squeeze effect in C#).
+
+### Architecture
+- **Single class pattern:** Centralizes item logic, easy to add new types (new `name` string + activation handler).
+- **StaticGroup for items:** Lighter than DynamicGroup; items don't move on their own.
+- **Projectile class:** Reuses bubble.png asset. Velocity-based trajectory. Collision handling deferred to gameplay layer.
+- **Input in GameScene:** D key for shoot, Down key for puddle flatten. Scene owns input state.
+
+### Build Status
+✅ Build clean  
+✅ Committed and pushed  
+
+### Next Work
+- PowerUp activation effects (animation, sound, player state change)
+- Projectile collision with enemies/obstacles  
+- Paddle/melee attack mechanics
+- Continue Level 1 feature completion
