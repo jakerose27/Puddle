@@ -4,6 +4,8 @@ import type { TiledObject } from '../entities/Block';
 import { Roller } from '../entities/Roller';
 import { SpikeBall } from '../entities/SpikeBall';
 import { Checkpoint } from '../entities/Checkpoint';
+import { PowerUp } from '../entities/PowerUp';
+import { Projectile } from '../entities/Projectile';
 
 const PLAYER_SPEED = 240; // px/sec — matches Player.cs speed≈4px/tick × 60
 const JUMP_VELOCITY = -600; // px/sec — matches Player.cs jumpHeight=10px/tick × 60
@@ -18,6 +20,8 @@ export class GameScene extends Phaser.Scene {
   private hazards!: Phaser.Physics.Arcade.StaticGroup;
   private gates!: Phaser.Physics.Arcade.StaticGroup;
   private checkpoints!: Phaser.Physics.Arcade.StaticGroup;
+  private items!: Phaser.Physics.Arcade.StaticGroup;
+  private projectiles!: Phaser.Physics.Arcade.Group;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private playerDead: boolean = false;
   private hurtFlashTimer: number = 0;
@@ -30,6 +34,20 @@ export class GameScene extends Phaser.Scene {
   private lives: number = STARTING_LIVES;
   private jumpKeyHeld: boolean = false;
   private gateTriggered: boolean = false;
+
+  /** Player ability flags — granted when powerup items are collected */
+  private playerPowerups: Record<string, boolean> = {
+    puddle: false,
+    jetpack: false,
+    charged: false,
+  };
+  /** True while the player is actively holding Down to stay puddled */
+  private puddled: boolean = false;
+
+  /** Shoot state — mirrors C# shooting flag + shotDelay (160ms = ~10 ticks) */
+  private shootKey!: Phaser.Input.Keyboard.Key;
+  private lastShotTick: number = -999;
+  private static readonly SHOT_DELAY_TICKS = 10; // C# shotDelay=160ms ≈ 10 ticks @ 60Hz
 
   private livesText!: Phaser.GameObjects.Text;
   private levelText!: Phaser.GameObjects.Text;
@@ -69,6 +87,10 @@ export class GameScene extends Phaser.Scene {
     this.load.image('geyser', 'assets/images/geyser.png');
     this.load.image('spikeball', 'assets/images/Enemies/spikeball.png');
     this.load.image('checkpoint', 'assets/images/checkpoint.png');
+    this.load.image('bubble', 'assets/images/bubble.png');
+
+    // Generate placeholder textures for powerup items
+    PowerUp.preloadTextures(this);
   }
 
   create(): void {
@@ -108,8 +130,10 @@ export class GameScene extends Phaser.Scene {
     this.hazards = this.physics.add.staticGroup();
     this.gates = this.physics.add.staticGroup();
     this.checkpoints = this.physics.add.staticGroup();
+    this.items = this.physics.add.staticGroup();
+    this.projectiles = this.physics.add.group();
 
-    // Items layer contains Rollers, Geysers, and Checkpoints.
+    // Items layer contains Rollers, Geysers, Checkpoints, and PowerUp pickups.
     const itemsLayer = map.getObjectLayer('Items');
     if (itemsLayer) {
       for (const obj of itemsLayer.objects as TiledObject[]) {
@@ -119,6 +143,7 @@ export class GameScene extends Phaser.Scene {
           hazards: this.hazards,
           gates: this.gates,
           checkpoints: this.checkpoints,
+          items: this.items,
         });
       }
     }
@@ -196,14 +221,23 @@ export class GameScene extends Phaser.Scene {
     // Enemies stand on ground
     this.physics.add.collider(this.enemies, this.ground);
 
-    // Enemy / hazard / gate / checkpoint overlaps
+    // Enemy / hazard / gate / checkpoint / item overlaps
     this.physics.add.overlap(this.player, this.enemies, this.onPlayerHitEnemy, undefined, this);
     this.physics.add.overlap(this.player, this.hazards, this.onPlayerHitHazard, undefined, this);
     this.physics.add.overlap(this.player, this.gates, this.onPlayerReachedGate, undefined, this);
     this.physics.add.overlap(this.player, this.checkpoints, this.onCheckpointReached, undefined, this);
+    this.physics.add.overlap(this.player, this.items, this.onPlayerCollectItem, undefined, this);
 
-    // Cursor keys
+    // Projectiles hit ground blocks → destroy projectile
+    this.physics.add.collider(
+      this.projectiles,
+      this.ground,
+      (proj) => { (proj as Projectile).destroy(); },
+    );
+
+    // Cursor keys + shoot key (D — mirrors C# Keys.D / RightShoulder)
     this.cursors = this.input.keyboard!.createCursorKeys();
+    this.shootKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.D);
 
     // Camera follows player within map bounds
     this.physics.world.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
@@ -327,12 +361,101 @@ export class GameScene extends Phaser.Scene {
       this.jumpKeyHeld = false;
     }
 
+    // --- Puddle ability (C#: Puddle key = Down, requires powerup["puddle"] and grounded) ---
+    // While puddled: player is flattened, cannot move horizontally, is invulnerable.
+    // Entering puddle: Down held + grounded + has puddle powerup.
+    // Exiting puddle: Down released.
+    if (this.playerPowerups.puddle) {
+      if (this.cursors.down.isDown && onGround && !this.puddled) {
+        // Enter puddle state
+        this.puddled = true;
+        body.setSize(18, 8); // flatten hitbox — C# collisionHeight shrinks to ~8px
+        this.player.setScale(1, 0.27); // visual squish
+        this.player.setVelocityX(0); // frozen (C#: frozen = puddled → no xAccel applied)
+      } else if (!this.cursors.down.isDown && this.puddled) {
+        // Exit puddle state
+        this.puddled = false;
+        body.setSize(18, 30); // restore hitbox — C# collisionHeight=30
+        this.player.setScale(1, 1);
+      }
+
+      if (this.puddled) {
+        // While puddled: no movement allowed (C# frozen property blocks xAccel)
+        this.player.setVelocityX(0);
+      }
+    }
+
+    // --- Shoot ability (C#: D key, no powerup required — gated by hydration in C#) ---
+    // Web port: fires once per press with a cooldown. Projectile travels in facing direction.
+    if (
+      Phaser.Input.Keyboard.JustDown(this.shootKey) &&
+      !this.puddled &&
+      this.tickCount - this.lastShotTick >= GameScene.SHOT_DELAY_TICKS
+    ) {
+      this.fireProjectile();
+      this.lastShotTick = this.tickCount;
+    }
+
+    // Tick each projectile (lifetime / expiry)
+    this.projectiles.getChildren().forEach(child => {
+      if (child instanceof Projectile && child.active) {
+        child.tick();
+      }
+    });
+
     // Tick each enemy that has per-tick logic
     this.enemies.getChildren().forEach(child => {
       if (child instanceof Roller || child instanceof SpikeBall) {
         child.update(this.tickCount);
       }
     });
+  }
+
+  /**
+   * Spawns a Projectile (bubble shot) in the direction the player is facing.
+   * C# equivalent: new Shot(this, dir) → level.projectiles.Add(s).
+   */
+  private fireProjectile(): void {
+    const facingLeft = this.player.flipX;
+    // Spawn offset: slightly in front of and vertically centered on player
+    const offsetX = facingLeft ? -18 : 18;
+    const proj = new Projectile(
+      this,
+      this.player.x + offsetX,
+      this.player.y,
+      facingLeft,
+    );
+    this.projectiles.add(proj);
+  }
+
+  /**
+   * Grants a powerup ability to the player.
+   * Called by PowerUp.collect().
+   * C# equivalent: player.powerup[name] = true.
+   */
+  public grantPowerup(name: string): void {
+    if (name in this.playerPowerups) {
+      this.playerPowerups[name] = true;
+    }
+    // Show brief HUD hint
+    const hints: Record<string, string> = {
+      puddle: '💧 Puddle: hold Down to flatten!',
+      jetpack: '🚀 Jetpack unlocked!',
+      charged: '⚡ Charged shot unlocked!',
+    };
+    if (hints[name]) {
+      const hintText = this.add
+        .text(this.cameras.main.centerX, this.scale.height - 60, hints[name], {
+          fontSize: '18px',
+          color: '#00ccff',
+          stroke: '#000000',
+          strokeThickness: 3,
+        })
+        .setOrigin(0.5)
+        .setScrollFactor(0)
+        .setDepth(10);
+      this.time.delayedCall(3000, () => hintText.destroy());
+    }
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -343,6 +466,13 @@ export class GameScene extends Phaser.Scene {
     this.spawnX = cp.x;
     this.spawnY = cp.y;
     cp.activate();
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private onPlayerCollectItem(_player: any, item: any): void {
+    const pu = item as PowerUp;
+    if (!pu.active) return;
+    pu.collect(this);
   }
 
   private onPlayerHitEnemy(): void {
@@ -381,6 +511,12 @@ export class GameScene extends Phaser.Scene {
     this.player.clearTint();
     this.player.setAlpha(1);
     this.jumpKeyHeld = false;
+    // Exit puddle state on respawn
+    if (this.puddled) {
+      this.puddled = false;
+      body.setSize(18, 30);
+      this.player.setScale(1, 1);
+    }
     // Decrement lives and update HUD
     this.lives = Math.max(0, this.lives - 1);
     this.livesText.setText(`❤️ x${this.lives}`);

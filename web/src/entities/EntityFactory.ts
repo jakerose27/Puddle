@@ -5,6 +5,7 @@ import { Geyser } from './Geyser';
 import { NextLevel } from './NextLevel';
 import { SpikeBall } from './SpikeBall';
 import { Checkpoint } from './Checkpoint';
+import { PowerUp } from './PowerUp';
 import type { GameScene } from '../scenes/GameScene';
 
 export interface EntityGroups {
@@ -13,6 +14,7 @@ export interface EntityGroups {
   hazards?: Phaser.Physics.Arcade.StaticGroup;
   gates?: Phaser.Physics.Arcade.StaticGroup;
   checkpoints?: Phaser.Physics.Arcade.StaticGroup;
+  items?: Phaser.Physics.Arcade.StaticGroup;
 }
 
 type EntityCreator = (
@@ -49,6 +51,10 @@ const REGISTRY: Record<string, EntityCreator> = {
   'Puddle.Checkpoint': (scene, obj, groups) => {
     if (!groups.checkpoints) return null;
     return Checkpoint.fromTiledObject(scene, obj, groups.checkpoints);
+  },
+  'Puddle.PowerUp': (scene, obj, groups) => {
+    if (!groups.items) return null;
+    return PowerUp.fromTiledObject(scene, obj, groups.items);
   },
 };
 
