@@ -29,6 +29,7 @@ export class GameScene extends Phaser.Scene {
   public ground!: Phaser.Physics.Arcade.StaticGroup;
   private enemies!: Phaser.Physics.Arcade.Group;
   private hazards!: Phaser.Physics.Arcade.StaticGroup;
+  private geysers!: Phaser.Physics.Arcade.StaticGroup;
   private gates!: Phaser.Physics.Arcade.StaticGroup;
   private checkpoints!: Phaser.Physics.Arcade.StaticGroup;
   private items!: Phaser.Physics.Arcade.StaticGroup;
@@ -210,6 +211,7 @@ export class GameScene extends Phaser.Scene {
     // Dynamic groups for enemies and hazards.
     this.enemies = this.physics.add.group();
     this.hazards = this.physics.add.staticGroup();
+    this.geysers = this.physics.add.staticGroup();
     this.gates = this.physics.add.staticGroup();
     this.checkpoints = this.physics.add.staticGroup();
     this.items = this.physics.add.staticGroup();
@@ -223,6 +225,7 @@ export class GameScene extends Phaser.Scene {
           ground: this.ground,
           enemies: this.enemies,
           hazards: this.hazards,
+          geysers: this.geysers,
           gates: this.gates,
           checkpoints: this.checkpoints,
           items: this.items,
@@ -291,6 +294,7 @@ export class GameScene extends Phaser.Scene {
     // Enemy / hazard / gate / checkpoint / item overlaps
     this.physics.add.overlap(this.player, this.enemies, this.onPlayerHitEnemy, undefined, this);
     this.physics.add.overlap(this.player, this.hazards, this.onPlayerHitHazard, undefined, this);
+    this.physics.add.overlap(this.player, this.geysers, this.onPlayerHitGeyser, undefined, this);
     this.physics.add.overlap(this.player, this.gates, this.onPlayerReachedGate, undefined, this);
     this.physics.add.overlap(this.player, this.checkpoints, this.onCheckpointReached, undefined, this);
     this.physics.add.overlap(this.player, this.items, this.onPlayerCollectItem, undefined, this);
@@ -615,6 +619,16 @@ export class GameScene extends Phaser.Scene {
   private onPlayerHitHazard(): void {
     if (!this.invincible && !this.playerDead) {
       this.triggerDeath();
+    }
+  }
+
+  /** Geyser contact: boost player upward and restore puddle powerup (mirrors C# Geyser.checkCollisions). */
+  private onPlayerHitGeyser(): void {
+    if (this.playerDead) return;
+    this.player.setVelocityY(-800);
+    // Restore puddle powerup if the player has earned it
+    if (this.playerPowerups.puddle !== undefined) {
+      this.playerPowerups.puddle = true;
     }
   }
 

@@ -2,23 +2,20 @@ import Phaser from 'phaser';
 import type { TiledObject } from './Block';
 
 /**
- * Geyser — hazard zone ported from C# Puddle.Geyser.
+ * Geyser — boost zone ported from C# Puddle.Geyser.
  *
- * C# Geyser behavior: on player contact, apply upward yVel (-5 px/tick) and
- * refill player hydration. It's a boost mechanic, not a lethal hit.
+ * C# Geyser behaviour: on player contact, apply upward yVel and refill hydration.
+ * It is a boost mechanic, NOT a lethal hazard.
  *
- * Web port simplification (per task spec): treated as a static kill zone.
- * Player overlap → playerDead = true (full death system wired by Ripley).
- * Future: could restore the boost + hydration behavior.
+ * Web port: on overlap, GameScene.onPlayerHitGeyser sets player yVelocity to -800
+ * (strong upward launch) and restores the puddle powerup flag.
  *
  * Note: Geyser objects in Tiled are regular rectangles (no gid), so Tiled y
  * is the top-left corner. Center = (x + w/2, y + h/2).
  *
- * Renders using the preloaded 'geyser' texture (geyser.png) so it appears as
- * the correct game sprite instead of a colored placeholder rectangle.
+ * Renders using the preloaded 'geyser' texture (geyser.png).
  */
 export class Geyser {
-  readonly isHazard: boolean = true;
   readonly gameObject: Phaser.GameObjects.Image;
 
   constructor(

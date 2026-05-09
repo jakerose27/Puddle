@@ -19,6 +19,7 @@ export interface EntityGroups {
   ground: Phaser.Physics.Arcade.StaticGroup;
   enemies?: Phaser.Physics.Arcade.Group;
   hazards?: Phaser.Physics.Arcade.StaticGroup;
+  geysers?: Phaser.Physics.Arcade.StaticGroup;
   gates?: Phaser.Physics.Arcade.StaticGroup;
   checkpoints?: Phaser.Physics.Arcade.StaticGroup;
   items?: Phaser.Physics.Arcade.StaticGroup;
@@ -44,8 +45,8 @@ const REGISTRY: Record<string, EntityCreator> = {
     return Roller.fromTiledObject(scene, obj, groups.enemies);
   },
   'Puddle.Geyser': (scene, obj, groups) => {
-    if (!groups.hazards) return null;
-    return Geyser.fromTiledObject(scene, obj, groups.hazards);
+    if (!groups.geysers) return null;
+    return Geyser.fromTiledObject(scene, obj, groups.geysers);
   },
   'Puddle.NextLevel': (scene, obj, groups) => {
     if (!groups.gates) return null;
