@@ -1,8 +1,6 @@
 import Phaser from 'phaser';
 import type { TiledObject } from './Block';
 
-const GEYSER_COLOR = 0x00aaff; // cyan-blue fallback tint if image not loaded
-
 /**
  * Geyser — hazard zone ported from C# Puddle.Geyser.
  *
@@ -15,10 +13,13 @@ const GEYSER_COLOR = 0x00aaff; // cyan-blue fallback tint if image not loaded
  *
  * Note: Geyser objects in Tiled are regular rectangles (no gid), so Tiled y
  * is the top-left corner. Center = (x + w/2, y + h/2).
+ *
+ * Renders using the preloaded 'geyser' texture (geyser.png) so it appears as
+ * the correct game sprite instead of a colored placeholder rectangle.
  */
 export class Geyser {
   readonly isHazard: boolean = true;
-  readonly gameObject: Phaser.GameObjects.Rectangle;
+  readonly gameObject: Phaser.GameObjects.Image;
 
   constructor(
     scene: Phaser.Scene,
@@ -27,8 +28,13 @@ export class Geyser {
     w: number,
     h: number,
   ) {
-    this.gameObject = scene.add.rectangle(cx, cy, w, h, GEYSER_COLOR, 0.6);
+    this.gameObject = scene.add.image(cx, cy, 'geyser');
+    this.gameObject.setDisplaySize(w, h);
     scene.physics.add.existing(this.gameObject, true /* static */);
+    // Explicitly size and centre the static body to match the Tiled rectangle.
+    const body = this.gameObject.body as Phaser.Physics.Arcade.StaticBody;
+    body.setSize(w, h);
+    body.reset(cx, cy);
   }
 
   /**

@@ -6,13 +6,13 @@ export interface TiledObject {
   y: number;
   width: number;
   height: number;
+  gid?: number; // present for tile-objects (y = bottom edge), absent for rectangle-objects (y = top-left)
   name?: string;
   type?: string;
   properties?: Array<{ name: string; value: unknown }>;
 }
 
 const TILE_SIZE = 32;
-const BLOCK_COLOR = 0x8b6f47;
 
 /**
  * Block — static collision tile ported from C# Puddle.Block.
@@ -28,7 +28,8 @@ export class Block {
   readonly gameObject: Phaser.GameObjects.Rectangle;
 
   constructor(scene: Phaser.Scene, cx: number, cy: number, w: number, h: number) {
-    this.gameObject = scene.add.rectangle(cx, cy, w, h, BLOCK_COLOR);
+    // Alpha=0: visuals come from the Background tile layer; this rect is physics-only.
+    this.gameObject = scene.add.rectangle(cx, cy, w, h, 0x000000, 0);
     scene.physics.add.existing(this.gameObject, true /* static */);
   }
 
@@ -36,8 +37,13 @@ export class Block {
    * Factory method — creates a Block from a Tiled object and adds it to the
    * given static group so Phaser's Arcade Physics picks it up for collisions.
    *
-   * Tiled tile-object convention: (x, y) is the bottom-left corner of the tile.
-   * Center = (x + w/2, y - h/2).
+   * Tiled y-coordinate convention:
+   *   Tile-objects (gid present):      y = bottom-left corner → center = y - h/2
+   *   Rectangle-objects (no gid):      y = top-left corner   → center = y + h/2
+   *
+   * Level1-1 Ground layer is mixed: outer walls/floor are gid=None rectangles
+   * while interior platform blocks carry gid=281 (brick tile). Both cases must
+   * be handled or physics bodies land 32px off from the visual tile layer.
    */
   static fromTiledObject(
     scene: Phaser.Scene,
@@ -47,7 +53,7 @@ export class Block {
     const w = obj.width || TILE_SIZE;
     const h = obj.height || TILE_SIZE;
     const cx = obj.x + w / 2;
-    const cy = obj.y - h / 2;
+    const cy = obj.gid ? obj.y - h / 2 : obj.y + h / 2;
 
     const block = new Block(scene, cx, cy, w, h);
     group.add(block.gameObject);
