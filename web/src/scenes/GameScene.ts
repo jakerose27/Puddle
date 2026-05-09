@@ -6,6 +6,9 @@ import { SpikeBall } from '../entities/SpikeBall';
 import { Checkpoint } from '../entities/Checkpoint';
 import { PowerUp } from '../entities/PowerUp';
 import { Projectile } from '../entities/Projectile';
+import { Bird } from '../entities/Bird';
+import { Cannon } from '../entities/Cannon';
+import { Button } from '../entities/Button';
 
 const PLAYER_SPEED = 240; // px/sec — matches Player.cs speed≈4px/tick × 60
 const JUMP_VELOCITY = -600; // px/sec — matches Player.cs jumpHeight=10px/tick × 60
@@ -37,6 +40,9 @@ export class GameScene extends Phaser.Scene {
   private lives: number = STARTING_LIVES;
   private jumpKeyHeld: boolean = false;
   private gateTriggered: boolean = false;
+
+  /** Cannon instances — tracked separately so we can call update(tickCount) each tick */
+  private cannons: Cannon[] = [];
 
   /** Player ability flags — granted when powerup items are collected */
   private playerPowerups: Record<string, boolean> = {
@@ -82,6 +88,7 @@ export class GameScene extends Phaser.Scene {
     this.accumulator = 0;
     this.tickCount = 0;
     this.lastShotTick = -999;
+    this.cannons = [];
     // Lives carry across levels; only reset when starting fresh (no level in data)
     if (!data.level) {
       this.lives = STARTING_LIVES;
@@ -183,7 +190,7 @@ export class GameScene extends Phaser.Scene {
     // EntityFactory dispatches by entity type, not layer name.
     for (const layer of map.objects) {
       for (const obj of layer.objects as TiledObject[]) {
-        EntityFactory.create(this, obj, {
+        const entity = EntityFactory.create(this, obj, {
           ground: this.ground,
           enemies: this.enemies,
           hazards: this.hazards,
@@ -191,6 +198,10 @@ export class GameScene extends Phaser.Scene {
           checkpoints: this.checkpoints,
           items: this.items,
         });
+        // Cannons need per-tick update calls — track them separately
+        if (entity instanceof Cannon) {
+          this.cannons.push(entity);
+        }
       }
     }
 
@@ -450,10 +461,15 @@ export class GameScene extends Phaser.Scene {
 
     // Tick each enemy that has per-tick logic
     this.enemies.getChildren().forEach(child => {
-      if (child instanceof Roller || child instanceof SpikeBall) {
+      if (child instanceof Roller || child instanceof SpikeBall || child instanceof Bird) {
         child.update(this.tickCount);
       }
     });
+
+    // Tick each cannon (fires projectiles on interval)
+    for (const cannon of this.cannons) {
+      if (cannon.active) cannon.update(this.tickCount);
+    }
   }
 
   /**
@@ -517,6 +533,11 @@ export class GameScene extends Phaser.Scene {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private onPlayerCollectItem(_player: any, item: any): void {
+    // Button — press on first contact (no powerup sound)
+    if (item instanceof Button) {
+      item.press();
+      return;
+    }
     const pu = item as PowerUp;
     if (!pu.active) return;
     pu.collect(this);
