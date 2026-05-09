@@ -9,6 +9,10 @@ import { Projectile } from '../entities/Projectile';
 import { Bird } from '../entities/Bird';
 import { Cannon } from '../entities/Cannon';
 import { Button } from '../entities/Button';
+import { Pipe } from '../entities/Pipe';
+import { Rat } from '../entities/Rat';
+import { Hand } from '../entities/Hand';
+import { Face } from '../entities/Face';
 
 const PLAYER_SPEED = 240; // px/sec — matches Player.cs speed≈4px/tick × 60
 const JUMP_VELOCITY = -600; // px/sec — matches Player.cs jumpHeight=10px/tick × 60
@@ -43,6 +47,9 @@ export class GameScene extends Phaser.Scene {
 
   /** Cannon instances — tracked separately so we can call update(tickCount) each tick */
   private cannons: Cannon[] = [];
+
+  /** All Pipe instances in the level — used for partner lookup during teleport. */
+  public pipes: Pipe[] = [];
 
   /** Player ability flags — granted when powerup items are collected */
   private playerPowerups: Record<string, boolean> = {
@@ -89,6 +96,7 @@ export class GameScene extends Phaser.Scene {
     this.tickCount = 0;
     this.lastShotTick = -999;
     this.cannons = [];
+    this.pipes = [];
     // Lives carry across levels; only reset when starting fresh (no level in data)
     if (!data.level) {
       this.lives = STARTING_LIVES;
@@ -121,7 +129,15 @@ export class GameScene extends Phaser.Scene {
     this.load.image('cannon', 'assets/images/cannon.png');
     this.load.image('Bird', 'assets/images/Enemies/bird.png');
     // Level1-3 tilesets
-    this.load.image('rat', 'assets/images/Enemies/rat.png');
+    this.load.spritesheet('rat', 'assets/images/Enemies/rat.png', {
+      frameWidth: 32,
+      frameHeight: 32,
+    });
+    this.load.image('hand', 'assets/images/Enemies/hand.png');
+    this.load.spritesheet('face', 'assets/images/Enemies/face.png', {
+      frameWidth: 96,
+      frameHeight: 96,
+    });
 
     // Player sprites
     this.load.image('player-stand', 'assets/images/PC/stand.png');
@@ -202,9 +218,12 @@ export class GameScene extends Phaser.Scene {
           checkpoints: this.checkpoints,
           items: this.items,
         });
-        // Cannons need per-tick update calls — track them separately
+        // Track entities that need per-tick updates outside the standard groups
         if (entity instanceof Cannon) {
           this.cannons.push(entity);
+        }
+        if (entity instanceof Pipe) {
+          this.pipes.push(entity);
         }
       }
     }
@@ -465,7 +484,14 @@ export class GameScene extends Phaser.Scene {
 
     // Tick each enemy that has per-tick logic
     this.enemies.getChildren().forEach(child => {
-      if (child instanceof Roller || child instanceof SpikeBall || child instanceof Bird) {
+      if (
+        child instanceof Roller ||
+        child instanceof SpikeBall ||
+        child instanceof Bird ||
+        child instanceof Rat ||
+        child instanceof Hand ||
+        child instanceof Face
+      ) {
         child.update(this.tickCount);
       }
     });
@@ -474,6 +500,9 @@ export class GameScene extends Phaser.Scene {
     for (const cannon of this.cannons) {
       if (cannon.active) cannon.update(this.tickCount);
     }
+
+    // Check pipe teleportation (proximity-based, cooldown-guarded)
+    this.checkPipeTeleport();
   }
 
   /**
@@ -594,6 +623,69 @@ export class GameScene extends Phaser.Scene {
     // Decrement lives and update HUD
     this.lives = Math.max(0, this.lives - 1);
     this.livesText.setText(`❤️ x${this.lives}`);
+  }
+
+  /**
+   * Proximity-based pipe teleport check. Called each fixed tick.
+   * Expands the player's physics body bounds by 2 px to detect touching (not just overlap)
+   * since the pipe is solid and the bodies will be separated by the collider.
+   */
+  private checkPipeTeleport(): void {
+    if (this.pipes.length === 0 || this.playerDead) return;
+    const pb = this.player.body as Phaser.Physics.Arcade.Body;
+    const prx = pb.x - 2;
+    const pry = pb.y - 2;
+    const prw = pb.width + 4;
+    const prh = pb.height + 4;
+
+    for (const pipe of this.pipes) {
+      if (!pipe.active) continue;
+      const body = pipe.body as Phaser.Physics.Arcade.StaticBody;
+      // AABB overlap with 2 px buffer
+      if (
+        prx < body.x + body.width &&
+        prx + prw > body.x &&
+        pry < body.y + body.height &&
+        pry + prh > body.y
+      ) {
+        pipe.tryTeleport(this.player, this.pipes, this.tickCount);
+        break; // only one teleport per tick
+      }
+    }
+  }
+
+  /**
+   * Called by Face when its health reaches zero.
+   * Destroys all enemies and shows a "YOU WIN!" overlay with restart option.
+   */
+  public onBossDefeated(): void {
+    this.enemies.getChildren().slice().forEach(e => (e as Phaser.GameObjects.GameObject).destroy());
+
+    this.add
+      .text(this.cameras.main.centerX, this.cameras.main.centerY, '🎉 YOU WIN!', {
+        fontSize: '48px',
+        color: '#ffe066',
+        stroke: '#000000',
+        strokeThickness: 6,
+      })
+      .setOrigin(0.5)
+      .setScrollFactor(0)
+      .setDepth(10);
+
+    this.add
+      .text(this.cameras.main.centerX, this.cameras.main.centerY + 56, 'Press R to replay', {
+        fontSize: '24px',
+        color: '#ffffff',
+        stroke: '#000000',
+        strokeThickness: 4,
+      })
+      .setOrigin(0.5)
+      .setScrollFactor(0)
+      .setDepth(10);
+
+    this.input.keyboard!.once('keydown-R', () => {
+      this.scene.restart();
+    });
   }
 
   private onPlayerReachedGate(): void {

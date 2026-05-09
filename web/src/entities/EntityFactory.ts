@@ -9,6 +9,10 @@ import { PowerUp } from './PowerUp';
 import { Bird } from './Bird';
 import { Cannon } from './Cannon';
 import { Button } from './Button';
+import { Pipe } from './Pipe';
+import { Rat } from './Rat';
+import { Hand } from './Hand';
+import { Face } from './Face';
 import type { GameScene } from '../scenes/GameScene';
 
 export interface EntityGroups {
@@ -73,22 +77,21 @@ const REGISTRY: Record<string, EntityCreator> = {
     return Cannon.fromTiledObject(scene, obj, groups.enemies);
   },
 
-  // Level1-3 entities — stubs until fully implemented
-  'Puddle.Pipe': (_scene, obj, _groups) => {
-    console.warn(`[EntityFactory] Puddle.Pipe not yet implemented (name="${obj.name ?? ''}") — skipping`);
-    return null;
+  // Level1-3+ entities
+  'Puddle.Pipe': (scene, obj, groups) => {
+    return Pipe.fromTiledObject(scene, obj, groups.ground);
   },
-  'Puddle.Rat': (_scene, obj, _groups) => {
-    console.warn(`[EntityFactory] Puddle.Rat not yet implemented (name="${obj.name ?? ''}") — skipping`);
-    return null;
+  'Puddle.Rat': (scene, obj, groups) => {
+    if (!groups.enemies) return null;
+    return Rat.fromTiledObject(scene, obj, groups.enemies);
   },
-  'Puddle.Face': (_scene, obj, _groups) => {
-    console.warn(`[EntityFactory] Puddle.Face not yet implemented (name="${obj.name ?? ''}") — skipping`);
-    return null;
+  'Puddle.Hand': (scene, obj, groups) => {
+    if (!groups.enemies) return null;
+    return Hand.fromTiledObject(scene, obj, groups.enemies);
   },
-  'Puddle.Hand': (_scene, obj, _groups) => {
-    console.warn(`[EntityFactory] Puddle.Hand not yet implemented (name="${obj.name ?? ''}") — skipping`);
-    return null;
+  'Puddle.Face': (scene, obj, groups) => {
+    if (!groups.enemies) return null;
+    return Face.fromTiledObject(scene, obj, groups.enemies);
   },
 };
 
