@@ -18,7 +18,10 @@ export class SpikeBall extends Phaser.Physics.Arcade.Sprite {
     scene.physics.add.existing(this);
 
     const body = this.body as Phaser.Physics.Arcade.Body;
-    body.setCollideWorldBounds(true);
+    // SpikeBall never moves in C# (Update is empty) — disable gravity so it
+    // stays on its platform rather than falling through to world bottom.
+    body.setAllowGravity(false);
+    body.setImmovable(true);
 
     // C# used a 22×22 collision box centred on the 32×32 sprite
     body.setSize(22, 22);

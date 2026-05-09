@@ -502,13 +502,18 @@ export class GameScene extends Phaser.Scene {
       if (this.cursors.down.isDown && onGround && !this.puddled) {
         // Enter puddle state
         this.puddled = true;
-        body.setSize(18, 8); // flatten hitbox — C# collisionHeight shrinks to ~8px
+        // Anchor the body's BOTTOM edge so the player doesn't fall through the floor.
+        // Normal body: size 18×30, offsetY=1 → bottom at sprite+31.
+        // Puddle body: size 18×8, offsetY=23 → bottom still at sprite+31.
+        body.setSize(18, 8);
+        body.setOffset(7, 23);
         this.player.setScale(1, 0.27); // visual squish
         this.player.setVelocityX(0); // frozen (C#: frozen = puddled → no xAccel applied)
       } else if (!this.cursors.down.isDown && this.puddled) {
         // Exit puddle state
         this.puddled = false;
-        body.setSize(18, 30); // restore hitbox — C# collisionHeight=30
+        body.setSize(18, 30);
+        body.setOffset(7, 1); // restore normal offset
         this.player.setScale(1, 1);
       }
 
