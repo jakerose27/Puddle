@@ -14,7 +14,7 @@ const TILE_SIZE = 32;
 const STARTING_LIVES = 5; // Player.cs: MAX_LIVES = 5
 
 /** Ordered campaign level sequence. Extend this array as more levels are converted. */
-const LEVEL_SEQUENCE = ['Level1-1', 'Level1-2', 'Level1-3'];
+const LEVEL_SEQUENCE = ['Level1-1', 'Level1-2', 'Level1-3', 'Level2-1', 'Level2-2', 'Level2-3', 'Level2-4'];
 
 export class GameScene extends Phaser.Scene {
   private player!: Phaser.Physics.Arcade.Sprite;
@@ -93,6 +93,10 @@ export class GameScene extends Phaser.Scene {
     this.load.tilemapTiledJSON('Level1-1', 'assets/levels/Level1-1.json');
     this.load.tilemapTiledJSON('Level1-2', 'assets/levels/Level1-2.json');
     this.load.tilemapTiledJSON('Level1-3', 'assets/levels/Level1-3.json');
+    this.load.tilemapTiledJSON('Level2-1', 'assets/levels/Level2-1.json');
+    this.load.tilemapTiledJSON('Level2-2', 'assets/levels/Level2-2.json');
+    this.load.tilemapTiledJSON('Level2-3', 'assets/levels/Level2-3.json');
+    this.load.tilemapTiledJSON('Level2-4', 'assets/levels/Level2-4.json');
 
     // Tilesets referenced by the maps
     this.load.image('background', 'assets/images/background.png');
