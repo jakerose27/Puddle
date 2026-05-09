@@ -28,6 +28,7 @@ export class Cannon extends Phaser.Physics.Arcade.Sprite {
   private direction: string; // 'left' | 'right' | 'up' | 'down'
   private fireIntervalTicks: number;
   private enemiesGroup: Phaser.Physics.Arcade.Group;
+  private ballTimers: Phaser.Time.TimerEvent[] = [];
 
   constructor(
     scene: Phaser.Scene,
@@ -123,8 +124,15 @@ export class Cannon extends Phaser.Physics.Arcade.Sprite {
     this.enemiesGroup.add(ball);
 
     // Auto-destroy after lifetime (mimics C# offScreen check)
-    this.scene.time.delayedCall(CANNONBALL_LIFETIME_MS, () => {
-      if (ball.active) ball.destroy();
+    const timer = this.scene.time.delayedCall(CANNONBALL_LIFETIME_MS, () => {
+          if (ball.active) ball.destroy();
     });
+    this.ballTimers.push(timer);
+  }
+
+  override destroy(fromScene?: boolean): void {
+    this.ballTimers.forEach(t => t.remove());
+    this.ballTimers = [];
+    super.destroy(fromScene);
   }
 }

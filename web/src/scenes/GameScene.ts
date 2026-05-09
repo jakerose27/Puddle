@@ -312,8 +312,8 @@ export class GameScene extends Phaser.Scene {
       this.enemies,
       (proj, enemy) => {
         (proj as Projectile).destroy();
-        const e = enemy as Phaser.Physics.Arcade.Sprite & { takeDamage?: () => void };
-        if (typeof e.takeDamage === 'function') e.takeDamage();
+        const e = enemy as Phaser.Physics.Arcade.Sprite & { takeDamage?: (amount: number) => void };
+        if (typeof e.takeDamage === 'function') e.takeDamage(1);
       },
     );
 

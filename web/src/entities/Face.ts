@@ -28,8 +28,10 @@ export class Face extends Phaser.Physics.Arcade.Sprite {
   private direction: number = -1; // -1 = left, 1 = right
   public health: number = FACE_MAX_HEALTH;
   private readonly maxHealth: number = FACE_MAX_HEALTH;
+  private defeated: boolean = false;
   private enemiesGroup: Phaser.Physics.Arcade.Group;
   private healthBar: Phaser.GameObjects.Graphics;
+  private fireballTimers: Phaser.Time.TimerEvent[] = [];
 
   constructor(
     scene: GameScene,
@@ -112,16 +114,20 @@ export class Face extends Phaser.Physics.Arcade.Sprite {
   }
 
   /** Reduces health by amount and triggers boss defeat if health reaches zero. */
-  takeDamage(amount: number): void {
+  takeDamage(amount: number = 1): void {
+    if (this.defeated) return;
     this.health = Math.max(0, this.health - amount);
     this.renderHealthBar(this.scene);
 
     if (this.health <= 0) {
+      this.defeated = true;
       (this.scene as GameScene).onBossDefeated();
     }
   }
 
   override destroy(fromScene?: boolean): void {
+    this.fireballTimers.forEach(t => t.remove());
+    this.fireballTimers = [];
     if (this.healthBar?.active) this.healthBar.destroy();
     super.destroy(fromScene);
   }
@@ -135,9 +141,10 @@ export class Face extends Phaser.Physics.Arcade.Sprite {
     this.enemiesGroup.add(ball);
 
     // Auto-destroy after 3 s (C#: offScreen check equivalent)
-    this.scene.time.delayedCall(FIREBALL_LIFETIME_MS, () => {
+    const timer = this.scene.time.delayedCall(FIREBALL_LIFETIME_MS, () => {
       if (ball.active) ball.destroy();
     });
+    this.fireballTimers.push(timer);
   }
 
   private renderHealthBar(scene: Phaser.Scene): void {
