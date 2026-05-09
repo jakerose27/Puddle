@@ -52,6 +52,10 @@ export class GameScene extends Phaser.Scene {
   private livesText!: Phaser.GameObjects.Text;
   private levelText!: Phaser.GameObjects.Text;
 
+  /** Sound effects — keyed by name, optional chained everywhere so missing files are silent */
+  public sounds: { [key: string]: Phaser.Sound.BaseSound } = {};
+  private music?: Phaser.Sound.BaseSound;
+
   private accumulator: number = 0;
   private readonly FIXED_STEP_MS: number = 1000 / 60; // 16.667ms = 60 Hz
   private tickCount: number = 0; // equivalent of Level.count
@@ -91,6 +95,14 @@ export class GameScene extends Phaser.Scene {
 
     // Generate placeholder textures for powerup items
     PowerUp.preloadTextures(this);
+
+    // Sound effects (WAV — browser-compatible)
+    this.load.audio('jump', 'assets/sounds/Jump.wav');
+    this.load.audio('death', 'assets/sounds/Death.wav');
+    this.load.audio('checkpoint', 'assets/sounds/Checkpoint.wav');
+    this.load.audio('powerup', 'assets/sounds/Powerup.wav');
+    this.load.audio('shoot', 'assets/sounds/Shot1.wav');
+    this.load.audio('music', 'assets/sounds/InGame.wav');
   }
 
   create(): void {
@@ -244,6 +256,31 @@ export class GameScene extends Phaser.Scene {
     this.cameras.main.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
     this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
 
+    // Sound effects — add each loaded sound with default volumes
+    const sfxKeys: Array<[string, number]> = [
+      ['jump', 0.5],
+      ['death', 0.6],
+      ['checkpoint', 0.7],
+      ['powerup', 0.8],
+      ['shoot', 0.4],
+    ];
+    for (const [key, volume] of sfxKeys) {
+      if (this.cache.audio.exists(key)) {
+        this.sounds[key] = this.sound.add(key, { volume });
+      }
+    }
+
+    // Background music — play after first user interaction (browser autoplay policy)
+    if (this.cache.audio.exists('music')) {
+      this.music = this.sound.add('music', { loop: true, volume: 0.3 });
+      // Phaser fires 'unlocked' once the AudioContext is resumed on first interaction
+      if (this.sound.locked) {
+        this.sound.once('unlocked', () => { this.music?.play(); });
+      } else {
+        this.music.play();
+      }
+    }
+
     // HUD — fixed to camera, depth 10 so it renders above everything
     const hudStyle = {
       fontSize: '20px',
@@ -346,6 +383,7 @@ export class GameScene extends Phaser.Scene {
     if ((this.cursors.up.isDown || this.cursors.space.isDown) && onGround) {
       this.player.setVelocityY(JUMP_VELOCITY);
       this.jumpKeyHeld = true;
+      this.sounds['jump']?.play();
     }
 
     // Jump cut — release jump early while ascending for a shorter hop
@@ -426,6 +464,7 @@ export class GameScene extends Phaser.Scene {
       facingLeft,
     );
     this.projectiles.add(proj);
+    this.sounds['shoot']?.play();
   }
 
   /**
@@ -466,6 +505,7 @@ export class GameScene extends Phaser.Scene {
     this.spawnX = cp.x;
     this.spawnY = cp.y;
     cp.activate();
+    this.sounds['checkpoint']?.play();
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -473,6 +513,7 @@ export class GameScene extends Phaser.Scene {
     const pu = item as PowerUp;
     if (!pu.active) return;
     pu.collect(this);
+    this.sounds['powerup']?.play();
   }
 
   private onPlayerHitEnemy(): void {
@@ -497,6 +538,7 @@ export class GameScene extends Phaser.Scene {
     this.player.setTint(0xff0000);
     // Screen flash — red tint to signal death
     this.cameras.main.flash(300, 255, 0, 0);
+    this.sounds['death']?.play();
   }
 
   private respawn(): void {
