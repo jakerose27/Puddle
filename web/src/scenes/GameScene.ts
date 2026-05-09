@@ -60,17 +60,47 @@ export class GameScene extends Phaser.Scene {
   private readonly FIXED_STEP_MS: number = 1000 / 60; // 16.667ms = 60 Hz
   private tickCount: number = 0; // equivalent of Level.count
 
+  /** Current level key — matches tilemapTiledJSON key and level filename */
+  private currentLevel: string = 'Level1-1';
+
   constructor() {
     super({ key: 'GameScene' });
   }
 
-  preload(): void {
-    // Tiled JSON map (exported from Level1-1.tmx — see web/README.md)
-    this.load.tilemapTiledJSON('level1', 'assets/levels/Level1-1.json');
+  init(data: { level?: string } = {}): void {
+    this.currentLevel = data.level ?? 'Level1-1';
+    // Reset per-level state (persists across scene.restart if not cleared here)
+    this.gateTriggered = false;
+    this.playerDead = false;
+    this.invincible = false;
+    this.invincibleTimer = 0;
+    this.puddled = false;
+    this.jumpKeyHeld = false;
+    this.accumulator = 0;
+    this.tickCount = 0;
+    this.lastShotTick = -999;
+    // Lives carry across levels; only reset when starting fresh (no level in data)
+    if (!data.level) {
+      this.lives = STARTING_LIVES;
+    }
+  }
 
-    // Tilesets referenced by the map
+  preload(): void {
+    // Tiled JSON maps for all implemented levels
+    this.load.tilemapTiledJSON('Level1-1', 'assets/levels/Level1-1.json');
+    this.load.tilemapTiledJSON('Level1-2', 'assets/levels/Level1-2.json');
+
+    // Tilesets referenced by the maps
     this.load.image('background', 'assets/images/background.png');
     this.load.image('brick', 'assets/images/brick.png');
+    // Level1-2 tilesets (harmless to preload even when on Level1-1)
+    this.load.image('button', 'assets/images/button.png');
+    this.load.image('push_block', 'assets/images/push_block.png');
+    this.load.image('fireball', 'assets/images/fireball.png');
+    this.load.image('pipe', 'assets/images/pipe.png');
+    this.load.image('jetpack', 'assets/images/jetpack.png');
+    this.load.image('cannon', 'assets/images/cannon.png');
+    this.load.image('Bird', 'assets/images/Enemies/bird.png');
 
     // Player sprites
     this.load.image('player-stand', 'assets/images/PC/stand.png');
@@ -106,7 +136,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   create(): void {
-    const map = this.make.tilemap({ key: 'level1' });
+    const map = this.make.tilemap({ key: this.currentLevel });
 
     // Wire both tilesets used in the Background tile layer.
     // GIDs 1–280 → 'background' tileset; GID 281 → 'brick' tileset.
@@ -130,12 +160,6 @@ export class GameScene extends Phaser.Scene {
     // Build static collision group from Ground object layer via EntityFactory.
     // Objects with type "Puddle.Block" are dispatched to Block.fromTiledObject().
     this.ground = this.physics.add.staticGroup();
-    const groundLayer = map.getObjectLayer('Ground');
-    if (groundLayer) {
-      for (const obj of groundLayer.objects as TiledObject[]) {
-        EntityFactory.create(this, obj, { ground: this.ground });
-      }
-    }
 
     // Dynamic groups for enemies and hazards.
     this.enemies = this.physics.add.group();
@@ -145,10 +169,10 @@ export class GameScene extends Phaser.Scene {
     this.items = this.physics.add.staticGroup();
     this.projectiles = this.physics.add.group();
 
-    // Items layer contains Rollers, Geysers, Checkpoints, and PowerUp pickups.
-    const itemsLayer = map.getObjectLayer('Items');
-    if (itemsLayer) {
-      for (const obj of itemsLayer.objects as TiledObject[]) {
+    // Process ALL object layers generically — works across any level regardless of layer names.
+    // EntityFactory dispatches by entity type, not layer name.
+    for (const layer of map.objects) {
+      for (const obj of layer.objects as TiledObject[]) {
         EntityFactory.create(this, obj, {
           ground: this.ground,
           enemies: this.enemies,
@@ -156,34 +180,6 @@ export class GameScene extends Phaser.Scene {
           gates: this.gates,
           checkpoints: this.checkpoints,
           items: this.items,
-        });
-      }
-    }
-
-    // Gate layer contains NextLevel objects (empty in Level1-1, wired for future levels).
-    const gateLayer = map.getObjectLayer('Gate');
-    if (gateLayer) {
-      for (const obj of gateLayer.objects as TiledObject[]) {
-        EntityFactory.create(this, obj, {
-          ground: this.ground,
-          enemies: this.enemies,
-          hazards: this.hazards,
-          gates: this.gates,
-          checkpoints: this.checkpoints,
-        });
-      }
-    }
-
-    // Enemies layer contains SpikeBall objects.
-    const enemiesLayer = map.getObjectLayer('Enemies');
-    if (enemiesLayer) {
-      for (const obj of enemiesLayer.objects as TiledObject[]) {
-        EntityFactory.create(this, obj, {
-          ground: this.ground,
-          enemies: this.enemies,
-          hazards: this.hazards,
-          gates: this.gates,
-          checkpoints: this.checkpoints,
         });
       }
     }
@@ -292,8 +288,9 @@ export class GameScene extends Phaser.Scene {
       .text(12, 12, `❤️ x${this.lives}`, hudStyle)
       .setScrollFactor(0)
       .setDepth(10);
+    const levelLabel = this.currentLevel.replace(/^Level(\d+)-(\d+)$/, 'Level $1-$2');
     this.levelText = this.add
-      .text(this.scale.width - 12, 12, 'Level 1-1', hudStyle)
+      .text(this.scale.width - 12, 12, levelLabel, hudStyle)
       .setOrigin(1, 0)
       .setScrollFactor(0)
       .setDepth(10);
@@ -568,39 +565,57 @@ export class GameScene extends Phaser.Scene {
     if (this.gateTriggered) return;
     this.gateTriggered = true;
 
-    console.log('Level complete!');
+    console.log(`Level complete: ${this.currentLevel}`);
 
-    // No Level 1-2 exists yet — show "You Win!" overlay and freeze the player
     const body = this.player.body as Phaser.Physics.Arcade.Body;
     body.setVelocity(0, 0);
     body.setAllowGravity(false);
     this.player.anims.stop();
 
-    this.add
-      .text(this.cameras.main.centerX, this.cameras.main.centerY, '🎉 YOU WIN!', {
-        fontSize: '48px',
-        color: '#ffe066',
-        stroke: '#000000',
-        strokeThickness: 6,
-      })
-      .setOrigin(0.5)
-      .setScrollFactor(0)
-      .setDepth(10);
+    if (this.currentLevel === 'Level1-1') {
+      // Transition to Level1-2
+      this.add
+        .text(this.cameras.main.centerX, this.cameras.main.centerY, '➡️ Level 1-2', {
+          fontSize: '40px',
+          color: '#ffe066',
+          stroke: '#000000',
+          strokeThickness: 6,
+        })
+        .setOrigin(0.5)
+        .setScrollFactor(0)
+        .setDepth(10);
 
-    this.add
-      .text(this.cameras.main.centerX, this.cameras.main.centerY + 56, 'Press R to replay', {
-        fontSize: '24px',
-        color: '#ffffff',
-        stroke: '#000000',
-        strokeThickness: 4,
-      })
-      .setOrigin(0.5)
-      .setScrollFactor(0)
-      .setDepth(10);
+      this.time.delayedCall(1500, () => {
+        this.scene.restart({ level: 'Level1-2' });
+      });
+    } else {
+      // No further levels yet — show win screen
+      this.add
+        .text(this.cameras.main.centerX, this.cameras.main.centerY, '🎉 YOU WIN!', {
+          fontSize: '48px',
+          color: '#ffe066',
+          stroke: '#000000',
+          strokeThickness: 6,
+        })
+        .setOrigin(0.5)
+        .setScrollFactor(0)
+        .setDepth(10);
 
-    // R key restarts the scene
-    this.input.keyboard!.once('keydown-R', () => {
-      this.scene.restart();
-    });
+      this.add
+        .text(this.cameras.main.centerX, this.cameras.main.centerY + 56, 'Press R to replay', {
+          fontSize: '24px',
+          color: '#ffffff',
+          stroke: '#000000',
+          strokeThickness: 4,
+        })
+        .setOrigin(0.5)
+        .setScrollFactor(0)
+        .setDepth(10);
+
+      // R key restarts from Level1-1
+      this.input.keyboard!.once('keydown-R', () => {
+        this.scene.restart();
+      });
+    }
   }
 }

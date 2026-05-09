@@ -6,7 +6,8 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "convert-levels": "node scripts/tmx-to-json.js ../Content/Levels/Level1-1.tmx public/assets/levels/Level1-1.json"
+    "convert-level": "node scripts/tmx-to-json.js",
+    "convert-levels": "node scripts/tmx-to-json.js ../Content/Levels/Level1-1.tmx public/assets/levels/Level1-1.json && node scripts/tmx-to-json.js ../Content/Levels/Level1-2.tmx public/assets/levels/Level1-2.json"
   },
   "dependencies": {
     "phaser": "^3.88.2"

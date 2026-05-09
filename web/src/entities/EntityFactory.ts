@@ -56,6 +56,20 @@ const REGISTRY: Record<string, EntityCreator> = {
     if (!groups.items) return null;
     return PowerUp.fromTiledObject(scene, obj, groups.items);
   },
+
+  // Level1-2 entities — stubs until fully implemented
+  'Puddle.Bird': (_scene, obj, _groups) => {
+    console.warn(`[EntityFactory] Puddle.Bird not yet implemented (name="${obj.name ?? ''}") — skipping`);
+    return null;
+  },
+  'Puddle.Button': (_scene, obj, _groups) => {
+    console.warn(`[EntityFactory] Puddle.Button not yet implemented (name="${obj.name ?? ''}") — skipping`);
+    return null;
+  },
+  'Puddle.Cannon': (_scene, obj, _groups) => {
+    console.warn(`[EntityFactory] Puddle.Cannon not yet implemented (name="${obj.name ?? ''}") — skipping`);
+    return null;
+  },
 };
 
 export const EntityFactory = {
