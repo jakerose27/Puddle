@@ -47,11 +47,10 @@ export class Block {
     const body = this.gameObject.body as Phaser.Physics.Arcade.StaticBody;
     if (type === 'transparent') {
       body.enable = false;
-      this.gameObject.setVisible(false);
+      this.gameObject.setAlpha(0);
     } else {
       body.enable = true;
-      // Keep rect invisible — visuals provided by tile layer
-      this.gameObject.setVisible(false);
+      this.gameObject.setFillStyle(0x8b6f47).setAlpha(1);
     }
   }
 
@@ -79,6 +78,16 @@ export class Block {
 
     const block = new Block(scene, cx, cy, w, h);
     block.name = obj.name ?? '';
+
+    // Ground/solid blocks render as brown rectangles (restores Spike 2 visual).
+    // Gate, transparent, and push blocks stay invisible (physics-only).
+    const name = (obj.name ?? '').toLowerCase();
+    const isGate = name.includes('gate') || name.includes('transparent') || name.includes('invis');
+    const isPush = name.includes('push') || name.includes('metal') || name.includes('temp');
+    if (!isGate && !isPush) {
+      block.gameObject.setFillStyle(0x8b6f47).setAlpha(1);
+    }
+
     group.add(block.gameObject);
     return block;
   }

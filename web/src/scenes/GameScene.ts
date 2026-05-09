@@ -185,6 +185,16 @@ export class GameScene extends Phaser.Scene {
   create(): void {
     const map = this.make.tilemap({ key: this.currentLevel });
 
+    // Restore original Spike 2 rendering: background.png stretched as scene backdrop.
+    const bgImg = this.add.image(
+      this.cameras.main.centerX,
+      this.cameras.main.centerY,
+      'background'
+    );
+    bgImg.setDisplaySize(this.scale.width, this.scale.height);
+    bgImg.setScrollFactor(0); // fixed to camera — it's a backdrop
+    bgImg.setDepth(-2);       // behind tile layer and everything else
+
     // Wire both tilesets used in the Background tile layer.
     // GIDs 1–280 → 'background' tileset; GID 281 → 'brick' tileset.
     const backgroundTileset = map.addTilesetImage('background', 'background');
@@ -193,17 +203,15 @@ export class GameScene extends Phaser.Scene {
     // Collect whichever tilesets loaded (graceful degradation if one returns null).
     const tilesetsLoaded = [backgroundTileset, brickTileset].filter(Boolean) as Phaser.Tilemaps.Tileset[];
 
-    // bgLayer declared here so it's accessible later when wiring the player collider.
+    // bgLayer kept hidden — the sky tileset provides no useful platform art.
+    // Block objects are the authoritative collision + visual source for platforms.
     let bgLayer: Phaser.Tilemaps.TilemapLayer | null = null;
     if (tilesetsLoaded.length > 0) {
       bgLayer = map.createLayer('Background', tilesetsLoaded);
       if (bgLayer) {
-        // The Background layer is marked visible=false in the Tiled source (editor
-        // convenience). Force it visible here so tile art actually renders in game.
-        bgLayer.setVisible(true);
+        bgLayer.setVisible(false); // Keep hidden — sky tileset provides no useful art
         bgLayer.setDepth(-1);
-        // Enable collision on all non-empty tiles so tile platforms are solid.
-        bgLayer.setCollisionByExclusion([-1], true);
+        // Do NOT setCollisionByExclusion here — Block objects handle all collision
       }
     }
 
@@ -301,13 +309,8 @@ export class GameScene extends Phaser.Scene {
       repeat: 0,
     });
 
-    // Collide player with ground blocks
+    // Collide player with ground blocks (Block objects are the authoritative collision source)
     this.physics.add.collider(this.player, this.ground);
-
-    // Collide player with Background tile layer platforms
-    if (bgLayer) {
-      this.physics.add.collider(this.player, bgLayer);
-    }
 
     // Enemies stand on ground
     this.physics.add.collider(this.enemies, this.ground);
