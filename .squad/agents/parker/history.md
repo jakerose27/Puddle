@@ -106,10 +106,38 @@ Detailed spike history (Spikes 1-5) has been archived to **parker/history-archiv
 
 ---
 
-## Next Tasks
-1. **Level 2 design** — Extend systems for new content
-2. **Audio integration** — Background music, SFX
-3. **Additional entities** — Based on Level 2 requirements
+---
+
+## Spike 9 — Level1-2: Asset Copy, TMX Conversion, Scene Transition (2026-05-09T09:50:04.207-07:00)
+
+**Commit:** `d0fe5cc` — `feat(web): Level1-2 — asset copy, TMX conversion, scene transition wired`
+
+### What changed
+- Copied 22 missing PNGs from `Content/` to `web/public/assets/images/` (button, cannon, fireball, pipe, jetpack, push_block, break_block, metal_block, temp_block, blank, egg, heart, charged, controls, puddle, roller_new + Enemies/bird, face, hand, rat + PC/puddle)
+- `web/package.json`: added `convert-level` (parameterized), updated `convert-levels` to convert both Level1-1 and Level1-2
+- Converted `Level1-2.tmx` → `Level1-2.json` (22×22, layers: Background, Foreground, Blocks, Items, Ground, Pipe, Enemies)
+- `GameScene.ts`:
+  - Added `init(data)` — reads `data.level`, sets `currentLevel`, resets per-level state; lives carry across levels
+  - `preload()` loads both `Level1-1` and `Level1-2` JSON + all new tileset images
+  - `create()` now uses `this.currentLevel` as tilemap key; replaced hardcoded layer-name loops with generic `map.objects` iteration (works for any level regardless of layer names)
+  - HUD level label auto-formats from `currentLevel`
+  - `onPlayerReachedGate()`: Level1-1 → Level1-2 with 1.5s "➡️ Level 1-2" transition; Level1-2 → YOU WIN overlay
+- `EntityFactory.ts`: added `console.warn` stubs for `Puddle.Bird`, `Puddle.Button`, `Puddle.Cannon` (new in Level1-2)
+
+### New entity types in Level1-2
+- **Puddle.Bird** — appears in Blocks layer (near gate) and Enemies layer (patrols); stub
+- **Puddle.Button** — appears in Items layer; likely opens the Gate 1 blocks; stub
+- **Puddle.Cannon** — appears in Blocks layer (top-right corner); stub
+
+### Key learnings
+- **Level1-2 has different layer names** than Level1-1 (Blocks, Items, Ground, Pipe, Enemies vs Ground, Items, Gate, Enemies). Generic `map.objects` iteration is the correct pattern — don't hardcode layer names.
+- **Level1-2 Background tile layer** uses only `background` + `brick` tilesets (same as Level1-1). Foreground tile layer is empty. No additional tilesets needed for tile rendering.
+- **scene.restart(data)** passes data to `init()` — reliable mechanism for level transitions in a single-scene architecture. State that must reset across levels should be explicitly cleared in `init()`, not just in class field initializers (those only run once).
+- **Lives carry across levels** by default in the web port (no reset in `init` when `data.level` is present). Matches C# behavior where lives persist until game over.
+
+### Build Status
+✅ Build clean  
+✅ Committed `d0fe5cc` and pushed to `squad/web-port-spike`
 
 ---
 
@@ -240,3 +268,24 @@ This pattern applies across all Puddle entities. New entity types should documen
 - Projectile collision with enemies/obstacles  
 - Paddle/melee attack mechanics
 - Continue Level 1 feature completion
+
+---
+
+## 2026-05-09 — Level1-2 Asset Copy + Scene Transition (Commit d0fe5cc)
+
+**Status:** Complete
+
+### What changed
+- Copied 22 PNG sprite/background assets to `web/assets/`
+- Converted Level1-2.tmx → Level1-2.json (Tiled JSON format)
+- Wired scene transition graph: Level1-1 → Level1-2 → You Win
+- Created entity stubs: Bird, Button, Cannon (placeholder implementations)
+
+### Architecture
+- Level sequence follows pattern: each level is a Phaser Scene
+- Transition triggered by level completion condition (player reaches exit)
+- Asset namespace: web/assets/images/ for PNGs, web/assets/levels/ for JSON
+
+### Next
+- Bird/Button/Cannon logic implementation (stub → full behavior)
+- Level1-3 asset copy + conversion (parallel to entity work)

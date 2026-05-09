@@ -184,3 +184,80 @@ Phaser 3 `anims.create()` frames array supports `{ key: 'texture-key', frame: 0 
 
 **Status:** Shipped and tested. Level 1 playable milestone achieved.
 
+---
+
+## 2026-05-09 — Audio / SFX System (commit a4a4fa9)
+
+### Sound files found (all WAV in Content/Sounds/)
+- **Jump.wav** → `sounds['jump']` (vol 0.5) — plays on jump initiation
+- **Death.wav** → `sounds['death']` (vol 0.6) — plays in `triggerDeath()`
+- **Checkpoint.wav** → `sounds['checkpoint']` (vol 0.7) — plays in `onCheckpointReached()`
+- **Powerup.wav** → `sounds['powerup']` (vol 0.8) — plays in `onPlayerCollectItem()`
+- **Shot1.wav** → `sounds['shoot']` (vol 0.4) — plays in `fireProjectile()`
+- **InGame.wav** → looped background music (vol 0.3) — plays on audio context unlock
+
+### Architecture decisions
+- `public sounds: { [key: string]: Phaser.Sound.BaseSound }` on GameScene — accessible from entity classes
+- Music uses `this.sound.locked` check + `sound.once('unlocked', ...)` to respect browser autoplay policy
+- All hook points use optional chaining (`?.play()`) — missing files are silent no-ops
+- No separate AudioManager class needed — GameScene owns all sounds directly at this scope
+
+### Event hooks wired
+| Event | Location | Sound |
+|-------|----------|-------|
+| Jump | `fixedUpdate()` — jump condition block | jump |
+| Death | `triggerDeath()` | death |
+| Checkpoint | `onCheckpointReached()` | checkpoint |
+| PowerUp collect | `onPlayerCollectItem()` | powerup |
+| Shoot | `fireProjectile()` | shoot |
+| Background music | `create()` — deferred via unlock event | InGame loop |
+
+### Key patterns
+- **Browser autoplay**: use `this.sound.locked` to check; if locked, defer play via `this.sound.once('unlocked', cb)`. Phaser fires 'unlocked' on first user interaction.
+- **WAV files are browser-native** — no XNB decoding needed; Content/Sounds/ is all raw WAV.
+- **InGame.wav is large** (21 MB) — acceptable for now, consider OGG conversion for prod.
+
+---
+
+## 2026-05-09 — Level1-3 Conversion + Progression Chain (commit 1569f64)
+
+### New entity types introduced by Level1-3
+Level1-3 uses: `Puddle.Bird`, `Puddle.Block`, `Puddle.Button`, `Puddle.Cannon`, `Puddle.Checkpoint`, `Puddle.Geyser`, `Puddle.Pipe`, `Puddle.Roller`, `Puddle.Rat`, `Puddle.SpikeBall`.
+
+**Two new types not previously registered:**
+- `Puddle.Pipe` — stub added (console.warn, returns null)
+- `Puddle.Rat` — stub added (console.warn, returns null)
+
+All others were already registered (implemented or stubbed from Level1-2).
+
+### Level progression refactor
+- Replaced hardcoded `if (this.currentLevel === 'Level1-1')` chain with `LEVEL_SEQUENCE` constant array at module scope.
+- `onPlayerReachedGate()` now uses `LEVEL_SEQUENCE.indexOf(this.currentLevel) + 1` to find the next level — adding future levels only requires appending to `LEVEL_SEQUENCE`.
+- Transition banner text is now dynamic: `nextLevel.replace(/^Level(\d+)-(\d+)$/, 'Level $1-$2')` — no hardcoded level names in the transition code.
+- HUD level label was already dynamic (added in audio session, line 291 of GameScene.ts) — no change needed.
+
+### Files changed
+- `web/public/assets/levels/Level1-3.json` — converted from Level1-3.tmx (22×22, 7 layers)
+- `web/src/entities/EntityFactory.ts` — added `Puddle.Pipe` and `Puddle.Rat` stubs
+- `web/src/scenes/GameScene.ts` — `LEVEL_SEQUENCE` constant, preload Level1-3 JSON + rat image, generalized `onPlayerReachedGate()`
+- `web/package.json` — `convert-levels` script extended to include Level1-3
+
+### Build status
+✅ `tsc && vite build` — clean, no TypeScript errors.
+
+### Pattern: adding campaign levels going forward
+1. Convert TMX: `node scripts/tmx-to-json.js ../Content/Levels/LevelX-Y.tmx public/assets/levels/LevelX-Y.json`
+2. Add `this.load.tilemapTiledJSON('LevelX-Y', ...)` in `preload()`
+3. Preload any new tileset images referenced by the map
+4. Add `'LevelX-Y'` to `LEVEL_SEQUENCE` array
+5. Stub any new entity types in EntityFactory
+6. Append to `convert-levels` in package.json
+
+
+### 2026-05-09 — Audio System (Commit a4a4fa9)
+
+- **16 WAV files catalogued** in Content/Sounds/
+- **6 wired for game**: jump, death, checkpoint, powerup, shoot, InGame (music)
+- **Audio pattern established**: Web Audio API integration, browser autoplay-safe (click-to-start)
+- **Location reference**: Web assets will be placed in web/public/assets/audio/
+- **Next**: Entity integration (Cannon fire sound, Player jump, etc.)
