@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import type { TiledObject } from './Block';
+import type { GameScene } from '../scenes/GameScene';
 
 /**
  * Button — pressure-plate entity ported from C# Puddle.Button (Button.cs).
@@ -8,19 +9,22 @@ import type { TiledObject } from './Block';
  *   - When the player (or a push block) overlaps the button it calls Action(level)
  *   - Action() opens Gate blocks and activates Invis blocks with matching number
  *   - `holdButton` variant re-closes gates when the player steps off
- *   - Also handles special names "Credits" and "Controls" for slide overlays
  *
- * Web port — minimal implementation (no crash):
- *   - Button renders with button.png, registers in the items group
- *   - Activates once on player overlap (press animation tint + log)
- *   - Gate-toggling is deferred (no Block.changeType system yet)
- *   - direction property is stored but only used for a visual flip
+ * Button number is parsed from buttonName (e.g. "Button 1" → 1).
+ * Named blocks are looked up via GameScene.namedBlocks:
+ *   "Gate N"  → changeType("transparent") on press, changeType("push") on release
+ *   "Block N" → changeType("push") on press, changeType("transparent") on release
+ *   "Invis N" → changeType("temp") on press, changeType("transparent") on release
  */
 export class Button extends Phaser.Physics.Arcade.Sprite {
-  /** True once the button has been pressed (prevents re-activation) */
+  /** True once the button has been pressed (prevents re-activation for non-hold buttons) */
   public activated: boolean = false;
-  /** Tiled name — used to match Gate / Block numbers in C# */
+  /** Whether the button is currently held down by the player */
+  public isDown: boolean = false;
+  /** Tiled name — used to match Gate / Block numbers */
   public readonly buttonName: string;
+  /** If true, gates re-close when the player steps off the button */
+  public readonly holdButton: boolean;
 
   constructor(
     scene: Phaser.Scene,
@@ -28,9 +32,11 @@ export class Button extends Phaser.Physics.Arcade.Sprite {
     y: number,
     buttonName: string,
     direction: string,
+    holdButton: boolean,
   ) {
     super(scene, x, y, 'button');
     this.buttonName = buttonName;
+    this.holdButton = holdButton;
 
     scene.add.existing(this);
     scene.physics.add.existing(this, true); // static body
@@ -59,25 +65,73 @@ export class Button extends Phaser.Physics.Arcade.Sprite {
     const cx = obj.x + w / 2;
     const cy = obj.y - h / 2; // tile object: y = bottom edge
 
-    const direction =
-      (obj.properties?.find(p => p.name === 'direction')?.value as string) ?? 'left';
-    const btn = new Button(scene, cx, cy, obj.name ?? '', direction);
+    const props = obj.properties ?? [];
+    const direction = (props.find(p => p.name === 'direction')?.value as string) ?? 'left';
+    const holdButton = (props.find(p => p.name === 'holdButton')?.value as boolean) ?? false;
+
+    const btn = new Button(scene, cx, cy, obj.name ?? '', direction, holdButton);
     group.add(btn, true);
     return btn;
   }
 
+  /** Parse trailing number from buttonName, e.g. "Button 1" → 1. */
+  private getButtonNumber(): number | null {
+    const match = this.buttonName.match(/(\d+)$/);
+    return match ? parseInt(match[1], 10) : null;
+  }
+
   /**
-   * Activates the button on first player contact.
-   * C# equivalent: Action(level) — opens matching Gate/Block objects.
-   * Gate-toggling deferred in the web port.
+   * Applies or reverses gate state for all named blocks matching this button's number.
+   * opening=true: press action (open gates, activate blocks)
+   * opening=false: release action (re-close gates) — only used when holdButton=true
    */
-  press(): void {
-    if (this.activated) return;
+  private applyGates(scene: GameScene, opening: boolean): void {
+    const num = this.getButtonNumber();
+    if (num === null) return;
+
+    for (const [name, block] of scene.namedBlocks) {
+      const blockMatch = name.match(/(\d+)$/);
+      if (!blockMatch || parseInt(blockMatch[1], 10) !== num) continue;
+
+      if (name.startsWith('Gate ')) {
+        block.changeType(opening ? 'transparent' : 'push');
+      } else if (name.startsWith('Block ')) {
+        block.changeType(opening ? 'push' : 'transparent');
+      } else if (name.startsWith('Invis ')) {
+        block.changeType(opening ? 'temp' : 'transparent');
+      }
+    }
+
+    // Refresh static group so Phaser's physics picks up body enable/disable changes.
+    scene.ground.refresh();
+  }
+
+  /**
+   * Called when player steps onto the button.
+   * For non-holdButton buttons this fires only once; for holdButton it re-fires each overlap.
+   */
+  press(scene: GameScene): void {
+    if (!this.holdButton && this.activated) return;
+    if (this.isDown) return; // already held this frame
+
+    this.isDown = true;
     this.activated = true;
-
-    console.log(`[Button] Pressed: "${this.buttonName}"`);
-
-    // Visual feedback: tint orange (pressed state)
     this.setTint(0xff8800);
+    this.applyGates(scene, true);
+
+    console.log(`[Button] Pressed: "${this.buttonName}" (hold=${this.holdButton})`);
+  }
+
+  /**
+   * Called when player steps OFF a holdButton.
+   * Re-closes gates to their default (closed) state.
+   */
+  release(scene: GameScene): void {
+    if (!this.isDown) return;
+    this.isDown = false;
+    this.clearTint();
+    this.applyGates(scene, false);
+
+    console.log(`[Button] Released: "${this.buttonName}"`);
   }
 }

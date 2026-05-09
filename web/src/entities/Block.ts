@@ -26,11 +26,33 @@ const TILE_SIZE = 32;
  */
 export class Block {
   readonly gameObject: Phaser.GameObjects.Rectangle;
+  public name: string = '';
+  private blockType: string = 'solid';
 
   constructor(scene: Phaser.Scene, cx: number, cy: number, w: number, h: number) {
     // Alpha=0: visuals come from the Background tile layer; this rect is physics-only.
     this.gameObject = scene.add.rectangle(cx, cy, w, h, 0x000000, 0);
     scene.physics.add.existing(this.gameObject, true /* static */);
+  }
+
+  /**
+   * Changes the collision/visibility state of this block.
+   * Mirrors C# Block.changeType() — used by Button gate-toggle logic.
+   *
+   * "transparent" → disable physics body (player passes through)
+   * "push" / "metal" / "temp" / default → enable physics body (solid)
+   */
+  changeType(type: string): void {
+    this.blockType = type;
+    const body = this.gameObject.body as Phaser.Physics.Arcade.StaticBody;
+    if (type === 'transparent') {
+      body.enable = false;
+      this.gameObject.setVisible(false);
+    } else {
+      body.enable = true;
+      // Keep rect invisible — visuals provided by tile layer
+      this.gameObject.setVisible(false);
+    }
   }
 
   /**
@@ -56,6 +78,7 @@ export class Block {
     const cy = obj.gid ? obj.y - h / 2 : obj.y + h / 2;
 
     const block = new Block(scene, cx, cy, w, h);
+    block.name = obj.name ?? '';
     group.add(block.gameObject);
     return block;
   }

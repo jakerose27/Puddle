@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { EntityFactory } from '../entities/EntityFactory';
+import { Block } from '../entities/Block';
 import type { TiledObject } from '../entities/Block';
 import { Roller } from '../entities/Roller';
 import { SpikeBall } from '../entities/SpikeBall';
@@ -25,7 +26,7 @@ const LEVEL_SEQUENCE = ['Level1-1', 'Level1-2', 'Level1-3', 'Level2-1', 'Level2-
 
 export class GameScene extends Phaser.Scene {
   private player!: Phaser.Physics.Arcade.Sprite;
-  private ground!: Phaser.Physics.Arcade.StaticGroup;
+  public ground!: Phaser.Physics.Arcade.StaticGroup;
   private enemies!: Phaser.Physics.Arcade.Group;
   private hazards!: Phaser.Physics.Arcade.StaticGroup;
   private gates!: Phaser.Physics.Arcade.StaticGroup;
@@ -50,6 +51,12 @@ export class GameScene extends Phaser.Scene {
 
   /** All Pipe instances in the level — used for partner lookup during teleport. */
   public pipes: Pipe[] = [];
+
+  /** Named blocks (e.g. "Gate 1", "Block 2") — keyed by Tiled name for Button gate-toggle. */
+  public namedBlocks: Map<string, Block> = new Map();
+
+  /** All Button instances — tracked to poll holdButton release each tick. */
+  private buttons: Button[] = [];
 
   /** Player ability flags — granted when powerup items are collected */
   private playerPowerups: Record<string, boolean> = {
@@ -97,6 +104,8 @@ export class GameScene extends Phaser.Scene {
     this.lastShotTick = -999;
     this.cannons = [];
     this.pipes = [];
+    this.namedBlocks = new Map();
+    this.buttons = [];
     // Lives carry across levels; only reset when starting fresh (no level in data)
     if (!data.level) {
       this.lives = STARTING_LIVES;
@@ -219,11 +228,17 @@ export class GameScene extends Phaser.Scene {
           items: this.items,
         });
         // Track entities that need per-tick updates outside the standard groups
+        if (entity instanceof Block && entity.name) {
+          this.namedBlocks.set(entity.name, entity);
+        }
         if (entity instanceof Cannon) {
           this.cannons.push(entity);
         }
         if (entity instanceof Pipe) {
           this.pipes.push(entity);
+        }
+        if (entity instanceof Button) {
+          this.buttons.push(entity);
         }
       }
     }
@@ -514,6 +529,9 @@ export class GameScene extends Phaser.Scene {
 
     // Check pipe teleportation (proximity-based, cooldown-guarded)
     this.checkPipeTeleport();
+
+    // holdButton release — re-close gates when player steps off
+    this.checkButtonRelease();
   }
 
   /**
@@ -579,7 +597,7 @@ export class GameScene extends Phaser.Scene {
   private onPlayerCollectItem(_player: any, item: any): void {
     // Button — press on first contact (no powerup sound)
     if (item instanceof Button) {
-      item.press();
+      item.press(this);
       return;
     }
     const pu = item as PowerUp;
@@ -634,6 +652,28 @@ export class GameScene extends Phaser.Scene {
     // Decrement lives and update HUD
     this.lives = Math.max(0, this.lives - 1);
     this.livesText.setText(`❤️ x${this.lives}`);
+  }
+
+  /**
+   * Checks holdButton buttons each tick — if the player is no longer overlapping
+   * a held button, call release() to re-close gates.
+   */
+  private checkButtonRelease(): void {
+    if (this.buttons.length === 0 || this.playerDead) return;
+    const pb = this.player.body as Phaser.Physics.Arcade.Body;
+
+    for (const btn of this.buttons) {
+      if (!btn.holdButton || !btn.isDown) continue;
+      const bb = btn.body as Phaser.Physics.Arcade.StaticBody;
+      const overlapping =
+        pb.x < bb.x + bb.width &&
+        pb.x + pb.width > bb.x &&
+        pb.y < bb.y + bb.height &&
+        pb.y + pb.height > bb.y;
+      if (!overlapping) {
+        btn.release(this);
+      }
+    }
   }
 
   /**
