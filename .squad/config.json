@@ -1,6 +1,7 @@
 {
   "version": 1,
   "agentModelOverrides": {
-    "dallas": "claude-opus-4.7-xhigh"
+    "dallas": "claude-opus-4.7-xhigh",
+    "parker": "claude-opus-4.7-high"
   }
 }

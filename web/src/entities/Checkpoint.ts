@@ -39,6 +39,7 @@ export class Checkpoint extends Phaser.Physics.Arcade.Sprite {
     const cy = obj.y - h / 2; // tile object: y = bottom edge
 
     const cp = new Checkpoint(scene, cx, cy);
+    cp.setFrame(0); // show first (inactive) frame
     group.add(cp);
     return cp;
   }
@@ -52,16 +53,10 @@ export class Checkpoint extends Phaser.Physics.Arcade.Sprite {
     if (this.activated) return;
     this.activated = true;
 
-    // Flash white → gold to signal activation
-    this.setTint(0xffffff);
-    this.scene.tweens.add({
-      targets: this,
-      duration: 80,
-      repeat: 3,
-      yoyo: true,
-      onComplete: () => {
-        this.setTint(0xffd700); // gold — stays permanently
-      },
+    // Play flag animation (frames 0→7), then lock to gold tint on complete
+    this.play('checkpoint-activate');
+    this.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
+      this.setTint(0xffd700); // gold — stays permanently
     });
   }
 }

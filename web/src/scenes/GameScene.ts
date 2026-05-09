@@ -167,7 +167,7 @@ export class GameScene extends Phaser.Scene {
     });
     this.load.image('geyser', 'assets/images/geyser.png');
     this.load.image('spikeball', 'assets/images/Enemies/spikeball.png');
-    this.load.image('checkpoint', 'assets/images/checkpoint.png');
+    this.load.spritesheet('checkpoint', 'assets/images/checkpoint.png', { frameWidth: 32, frameHeight: 32 });
     this.load.image('bubble', 'assets/images/bubble.png');
 
     // Generate placeholder textures for powerup items
@@ -190,15 +190,20 @@ export class GameScene extends Phaser.Scene {
     const backgroundTileset = map.addTilesetImage('background', 'background');
     const brickTileset = map.addTilesetImage('brick', 'brick');
 
-    // Render the Background tile layer using both tilesets.
-    // Fall back gracefully if createLayer returns null (e.g. layer name mismatch).
-    if (backgroundTileset && brickTileset) {
-      const bgLayer = map.createLayer('Background', [backgroundTileset, brickTileset]);
+    // Collect whichever tilesets loaded (graceful degradation if one returns null).
+    const tilesetsLoaded = [backgroundTileset, brickTileset].filter(Boolean) as Phaser.Tilemaps.Tileset[];
+
+    // bgLayer declared here so it's accessible later when wiring the player collider.
+    let bgLayer: Phaser.Tilemaps.TilemapLayer | null = null;
+    if (tilesetsLoaded.length > 0) {
+      bgLayer = map.createLayer('Background', tilesetsLoaded);
       if (bgLayer) {
         // The Background layer is marked visible=false in the Tiled source (editor
         // convenience). Force it visible here so tile art actually renders in game.
         bgLayer.setVisible(true);
         bgLayer.setDepth(-1);
+        // Enable collision on all non-empty tiles so tile platforms are solid.
+        bgLayer.setCollisionByExclusion([-1], true);
       }
     }
 
@@ -288,8 +293,21 @@ export class GameScene extends Phaser.Scene {
       repeat: 0,
     });
 
+    // Checkpoint flag animation — plays through all 8 frames on activation
+    this.anims.create({
+      key: 'checkpoint-activate',
+      frames: this.anims.generateFrameNumbers('checkpoint', { start: 0, end: 7 }),
+      frameRate: 8,
+      repeat: 0,
+    });
+
     // Collide player with ground blocks
     this.physics.add.collider(this.player, this.ground);
+
+    // Collide player with Background tile layer platforms
+    if (bgLayer) {
+      this.physics.add.collider(this.player, bgLayer);
+    }
 
     // Enemies stand on ground
     this.physics.add.collider(this.enemies, this.ground);
