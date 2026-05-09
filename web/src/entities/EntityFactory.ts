@@ -82,6 +82,14 @@ const REGISTRY: Record<string, EntityCreator> = {
     console.warn(`[EntityFactory] Puddle.Rat not yet implemented (name="${obj.name ?? ''}") — skipping`);
     return null;
   },
+  'Puddle.Face': (_scene, obj, _groups) => {
+    console.warn(`[EntityFactory] Puddle.Face not yet implemented (name="${obj.name ?? ''}") — skipping`);
+    return null;
+  },
+  'Puddle.Hand': (_scene, obj, _groups) => {
+    console.warn(`[EntityFactory] Puddle.Hand not yet implemented (name="${obj.name ?? ''}") — skipping`);
+    return null;
+  },
 };
 
 export const EntityFactory = {

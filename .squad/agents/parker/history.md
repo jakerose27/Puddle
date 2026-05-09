@@ -143,6 +143,28 @@ Detailed spike history (Spikes 1-5) has been archived to **parker/history-archiv
 
 ## Learnings
 
+### 2026-05-09T09:50:04.207-07:00 — Bird, Cannon, Button — Level1-2 Fully Playable
+
+**Commit:** `bd9a36c`
+
+#### Bird has no Bird.cs in C#
+There is no Bird.cs in the Objects/ folder. Bird was implemented as a horizontal-patrol enemy mirroring Roller: `BIRD_SPEED = 80 px/s`, reverses on `body.blocked.left/right`, uses `'Bird'` texture key (preloaded with capital B). All 3 Bird instances in Level1-2 have `gid=330` → tile-object y-formula: `cy = obj.y - h/2`.
+
+#### Cannon fires at `level.count % speed == 0` — default speed=125 ticks
+C# Cannon reads `direction` and optional `speed` from Tiled properties. Speed=125 ticks ≈ 2.1s at 60Hz. Web port: Cannon is a standalone static sprite (not in enemies/ground group), tracked in `GameScene.cannons: Cannon[]`, `update(tickCount)` called each fixedUpdate tick. Cannonballs are `physics.add.sprite(…, 'fireball')` with `setAllowGravity(false)` and `setVelocity(vx, vy)` — added to enemies group so player→death overlap fires automatically. Auto-destroy after 5000ms (mirrors C# `offScreen` check).
+
+#### Cannon update pattern: separate array, not enemies group
+Cannon must fire projectiles each tick — it needs `update(tickCount)`. It is NOT in the enemies group (that group has gravity; static entities should be standalone). GameScene captures `instanceof Cannon` after `EntityFactory.create()` and pushes to `this.cannons`. Reset `this.cannons = []` in `init()` — field initializers only run at construction, not on `scene.restart()`.
+
+#### Button gate-toggling deferred — minimal press-only implementation
+C# Button.Action() opens Gate blocks and converts Invis blocks by matching name number (e.g., "Button 1" → "Gate 1"). Gate-toggling requires a Block.changeType() system not yet ported. Web port: Button registers in items group, activates on player overlap via `onPlayerCollectItem` (extended with `instanceof Button` check), tints orange on press. No game-breaking omission for Level1-2 since the gate blocks are already transparent or absent in the converted JSON.
+
+#### onPlayerCollectItem needs instanceof guard for multiple item types
+The items StaticGroup now contains both PowerUp and Button instances. `onPlayerCollectItem` must check `instanceof Button` before casting to `PowerUp`, or it will call `undefined.collect()` and crash.
+
+#### EntityFactory.create() returns unknown — use instanceof in GameScene to classify
+`EntityFactory.create()` returns `unknown`. Pattern for entities needing post-creation wiring: `const entity = EntityFactory.create(...); if (entity instanceof Cannon) this.cannons.push(entity);`. This avoids leaking entity-type knowledge into EntityFactory.
+
 ### 2026-05-09T09:50:04.207-07:00 — PowerUp Pickup + Puddle/Shoot Abilities
 
 **Commit:** `8559e1f`
