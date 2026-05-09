@@ -13,6 +13,9 @@ const MAX_FALL_SPEED = 600; // px/sec — matches Player.cs maxFallSpeed=10px/ti
 const TILE_SIZE = 32;
 const STARTING_LIVES = 5; // Player.cs: MAX_LIVES = 5
 
+/** Ordered campaign level sequence. Extend this array as more levels are converted. */
+const LEVEL_SEQUENCE = ['Level1-1', 'Level1-2', 'Level1-3'];
+
 export class GameScene extends Phaser.Scene {
   private player!: Phaser.Physics.Arcade.Sprite;
   private ground!: Phaser.Physics.Arcade.StaticGroup;
@@ -89,6 +92,7 @@ export class GameScene extends Phaser.Scene {
     // Tiled JSON maps for all implemented levels
     this.load.tilemapTiledJSON('Level1-1', 'assets/levels/Level1-1.json');
     this.load.tilemapTiledJSON('Level1-2', 'assets/levels/Level1-2.json');
+    this.load.tilemapTiledJSON('Level1-3', 'assets/levels/Level1-3.json');
 
     // Tilesets referenced by the maps
     this.load.image('background', 'assets/images/background.png');
@@ -101,6 +105,8 @@ export class GameScene extends Phaser.Scene {
     this.load.image('jetpack', 'assets/images/jetpack.png');
     this.load.image('cannon', 'assets/images/cannon.png');
     this.load.image('Bird', 'assets/images/Enemies/bird.png');
+    // Level1-3 tilesets
+    this.load.image('rat', 'assets/images/Enemies/rat.png');
 
     // Player sprites
     this.load.image('player-stand', 'assets/images/PC/stand.png');
@@ -572,10 +578,13 @@ export class GameScene extends Phaser.Scene {
     body.setAllowGravity(false);
     this.player.anims.stop();
 
-    if (this.currentLevel === 'Level1-1') {
-      // Transition to Level1-2
+    const currentIndex = LEVEL_SEQUENCE.indexOf(this.currentLevel);
+    const nextLevel = LEVEL_SEQUENCE[currentIndex + 1];
+
+    if (nextLevel) {
+      const nextLabel = nextLevel.replace(/^Level(\d+)-(\d+)$/, 'Level $1-$2');
       this.add
-        .text(this.cameras.main.centerX, this.cameras.main.centerY, '➡️ Level 1-2', {
+        .text(this.cameras.main.centerX, this.cameras.main.centerY, `➡️ ${nextLabel}`, {
           fontSize: '40px',
           color: '#ffe066',
           stroke: '#000000',
@@ -586,10 +595,10 @@ export class GameScene extends Phaser.Scene {
         .setDepth(10);
 
       this.time.delayedCall(1500, () => {
-        this.scene.restart({ level: 'Level1-2' });
+        this.scene.restart({ level: nextLevel });
       });
     } else {
-      // No further levels yet — show win screen
+      // End of campaign — show win screen
       this.add
         .text(this.cameras.main.centerX, this.cameras.main.centerY, '🎉 YOU WIN!', {
           fontSize: '48px',

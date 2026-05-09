@@ -70,6 +70,16 @@ const REGISTRY: Record<string, EntityCreator> = {
     console.warn(`[EntityFactory] Puddle.Cannon not yet implemented (name="${obj.name ?? ''}") — skipping`);
     return null;
   },
+
+  // Level1-3 entities — stubs until fully implemented
+  'Puddle.Pipe': (_scene, obj, _groups) => {
+    console.warn(`[EntityFactory] Puddle.Pipe not yet implemented (name="${obj.name ?? ''}") — skipping`);
+    return null;
+  },
+  'Puddle.Rat': (_scene, obj, _groups) => {
+    console.warn(`[EntityFactory] Puddle.Rat not yet implemented (name="${obj.name ?? ''}") — skipping`);
+    return null;
+  },
 };
 
 export const EntityFactory = {
