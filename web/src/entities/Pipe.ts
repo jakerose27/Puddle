@@ -49,6 +49,11 @@ export class Pipe extends Phaser.Physics.Arcade.Sprite {
     if (isEndPipe) {
       this.setTint(0xffd700);
     }
+
+    // Pipe is a physics/logic entity only — the Background tile layer renders the
+    // pipe graphic. Hiding the sprite prevents a gold-tinted artifact appearing at
+    // the top of the screen during the camera's initial lerp from (0,0).
+    this.setAlpha(0);
   }
 
   /**

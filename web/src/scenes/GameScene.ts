@@ -195,6 +195,9 @@ export class GameScene extends Phaser.Scene {
     if (backgroundTileset && brickTileset) {
       const bgLayer = map.createLayer('Background', [backgroundTileset, brickTileset]);
       if (bgLayer) {
+        // The Background layer is marked visible=false in the Tiled source (editor
+        // convenience). Force it visible here so tile art actually renders in game.
+        bgLayer.setVisible(true);
         bgLayer.setDepth(-1);
       }
     }

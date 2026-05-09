@@ -3848,7 +3848,19 @@
       "draworder": "topdown",
       "id": 7,
       "name": "Gate",
-      "objects": [],
+      "objects": [
+        {
+          "height": 96,
+          "id": 266,
+          "name": "Level1-2",
+          "rotation": 0,
+          "type": "Puddle.NextLevel",
+          "visible": true,
+          "width": 32,
+          "x": 640,
+          "y": 96
+        }
+      ],
       "opacity": 1,
       "type": "objectgroup",
       "visible": true,
