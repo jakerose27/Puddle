@@ -287,6 +287,17 @@ export class GameScene extends Phaser.Scene {
       (proj) => { (proj as Projectile).destroy(); },
     );
 
+    // Projectiles hit enemies → destroy projectile + damage enemy
+    this.physics.add.overlap(
+      this.projectiles,
+      this.enemies,
+      (proj, enemy) => {
+        (proj as Projectile).destroy();
+        const e = enemy as Phaser.Physics.Arcade.Sprite & { takeDamage?: () => void };
+        if (typeof e.takeDamage === 'function') e.takeDamage();
+      },
+    );
+
     // Cursor keys + shoot key (D — mirrors C# Keys.D / RightShoulder)
     this.cursors = this.input.keyboard!.createCursorKeys();
     this.shootKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.D);
