@@ -4,6 +4,7 @@
 - Branch: squad/web-port-spike
 - **Level 1 fully polished and playable end-to-end** ✅ (Milestone achieved 2026-05-03)
 - Last commits:
+  - Parker (commit 07b86d2): Visual entity bug fixes — Geyser sprite (cyan rect → geyser.png), Block physics bodies transparent (alpha=0), Block y-formula fix for rectangle objects (77 affected), TiledObject interface updated with `gid?: number` field
   - Parker (commit 10ba581): Level 1 polish pass — physics tuned to C# constants, jump cut, HUD (lives + level label), death camera flash, respawn Y offset, NextLevel "You Win!" overlay with R-key guard
   - Ripley (commit 4758128): Player animations — idle/walk/jump states, real sprite sheets from Content/PC/, direction flip
   - Parker (commit 2278910): Checkpoint entity — Checkpoint.ts, EntityFactory wired, GameScene checkpoint overlap callback
@@ -22,8 +23,8 @@
 - Decision 6: Geyser simplified to static kill zone for Level 1 milestone. Restore full boost-and-hydrate behavior when Ripley's hydration system is ported.
 
 ## Next tasks (priority order)
-1. **Level 2 design & expansion** — New level geometry, new entity types. Effort: M. Blocks: None.
-2. **Powerup items & hydration system** — Geyser boost behavior, restore hydration mechanics. Effort: M. Unblocks full Level 1 gameplay.
+1. **Powerup items & hydration system** — Geyser boost behavior, PowerUp entity impl (gid=311 Ground layer), restore hydration mechanics. Effort: M. In progress (parker-7).
+2. **Level 2 design & expansion** — New level geometry, new entity types. Effort: M. Blocks: None.
 3. **Audio integration** — Background music loops, SFX for actions. Effort: M. Unblocks final polish.
 4. **Vercel deployment** — Deploy web/ to Vercel prod. Effort: S. Unblocks public playtesting.
 

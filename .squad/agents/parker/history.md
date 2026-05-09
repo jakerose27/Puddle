@@ -98,6 +98,7 @@ Detailed spike history (Spikes 1-5) has been archived to **parker/history-archiv
 ---
 
 ## Recent commits
+- 07b86d2 — Visual entity bugs fix (Parker)
 - 10ba581 — Level 1 polish pass (Parker)
 - 2278910 — Checkpoint entity (Parker)
 - 4758128 — Player animations (Ripley)
@@ -109,3 +110,68 @@ Detailed spike history (Spikes 1-5) has been archived to **parker/history-archiv
 1. **Level 2 design** — Extend systems for new content
 2. **Audio integration** — Background music, SFX
 3. **Additional entities** — Based on Level 2 requirements
+
+---
+
+## Learnings
+
+### 2026-05-09T09:44:52.564-07:00 — Visual Entity Bug Fix
+
+**Commit:** `07b86d2`
+
+#### Tiled y-coordinate convention — CRITICAL, both formats coexist in the same layer
+
+Level1-1 Ground object layer mixes two Tiled object types in a single layer:
+- **Tile-objects** (`gid` present, e.g. gid=281 brick platform blocks): Tiled stores `y` as the **bottom-left** corner → `cy = obj.y - h/2`
+- **Rectangle-objects** (`gid=None`, e.g. outer walls at x=0/x=672, bottom floor row at y=672): Tiled stores `y` as the **top-left** corner → `cy = obj.y + h/2`
+
+Block.ts was using only the tile-object formula for both, placing 77 gid=None rectangle blocks 32px too high. Root effect: outer walls misaligned, floor physics off by one tile, SpikeBalls landing in wrong positions. **Fix: check `obj.gid` to select formula. Added `gid?: number` to the TiledObject interface.**
+
+All other entity types are homogeneous:
+- Roller, SpikeBall, Checkpoint → always tile-objects → `cy = obj.y - h/2` ✓
+- Geyser, NextLevel → always rectangle-objects → `cy = obj.y + h/2` ✓
+
+#### Block.ts should be physics-only (invisible)
+
+Block entities create physics bodies for collision. Visuals come from the Background tile layer (rendered at depth=-1). Block.ts was using `BLOCK_COLOR = 0x8b6f47` (visible brownish rectangle) which covered the tileset art. **Fix: use `scene.add.rectangle(cx, cy, w, h, 0x000000, 0)` — alpha=0 makes it a transparent physics-only body.**
+
+#### Geyser must use the 'geyser' texture, not a rectangle
+
+Geyser was using `scene.add.rectangle(..., 0x00aaff, 0.6)` — a visible cyan-blue box. The `geyser.png` sprite exists and is preloaded. **Fix: switch to `scene.add.image(cx, cy, 'geyser')` + `setDisplaySize(w, h)` + `physics.add.existing(..., true)` + `body.setSize(w, h)` + `body.reset(cx, cy)`.**
+
+#### EntityFactory unknown-type handling is correct
+
+`Puddle.Pipe` (Pipe layer, not processed by GameScene) and `Puddle.PowerUp` (Ground layer, gid=311) are not in the registry. EntityFactory already does `console.warn` + `return null` for unknown types. No black rectangle fallback — the warning is the correct behavior.
+
+#### Key debugging patterns
+- Colored rectangle in game → entity using `scene.add.rectangle()` instead of sprite
+- Physics body 32px off from visual → check Tiled object type (gid vs no-gid) for correct y-formula
+- Unknown type console.warn is the signal to check Tiled JSON for unregistered `type` strings
+
+---
+
+## 2026-05-09 — Visual Entity Bug Fixes (parker-7)
+
+**Session:** 2026-05-09T09:50:04.207-07:00  
+**Status:** Complete
+
+### Patterns Identified
+
+#### Block transparency pattern
+Block physics bodies must be invisible (alpha=0) to allow Background tileset layer to render. Collision surfaces are physics-only; visual art comes from a separate tile layer at depth=-1. Future entities with similar architecture should follow this pattern.
+
+#### Tiled y-formula discrimination pattern
+When processing mixed Tiled object types in a single layer, check `obj.gid` to determine y-coordinate semantics:
+- `obj.gid` present → tile-object → `cy = obj.y - h/2`
+- `obj.gid` absent → rectangle-object → `cy = obj.y + h/2`
+
+This pattern applies across all Puddle entities. New entity types should document which formula applies (or if they're homogeneous, document that fact).
+
+### Build Status
+✅ All fixes committed and pushed  
+✅ Build clean  
+✅ 77 rectangle blocks now at correct positions  
+
+### Next Work
+- PowerUp items (Ground layer, type `Puddle.PowerUp`) — in progress per spawn manifest
+- Continue Level 1 polish iteration
