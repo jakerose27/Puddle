@@ -85,7 +85,10 @@ export class Roller extends Phaser.Physics.Arcade.Sprite {
 
     const roller = new Roller(scene, cx, cy, facingLeft);
     group.add(roller, true);
-    (roller.body as Phaser.Physics.Arcade.Body).setImmovable(true);
+    // NOTE: Do NOT call setImmovable(true) here. Rollers are dynamic bodies that
+    // rely on collider(movers, ground) to stay on the platform. Two immovable bodies
+    // (roller + static ground) cause Phaser to skip collision resolution, making
+    // rollers fall through. Velocity re-assertion in update() prevents player nudges.
     return roller;
   }
 
