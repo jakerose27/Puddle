@@ -340,22 +340,9 @@ export class GameScene extends Phaser.Scene {
     // Enemies stand on ground
     this.physics.add.collider(this.enemies, this.ground);
 
-    // Movers (Rollers) stand on ground and push the player via collision — never kill.
+    // Movers (Rollers) stand on ground and kill the player on touch.
     this.physics.add.collider(this.movers, this.ground);
-    this.physics.add.collider(
-      this.player,
-      this.movers,
-      undefined,
-      (_player, _roller) => {
-        const pb = (this.player.body as Phaser.Physics.Arcade.Body);
-        const rb = (_roller as Phaser.Physics.Arcade.Sprite).body as Phaser.Physics.Arcade.Body;
-        // Only resolve collision when player feet are at or above roller top
-        // (i.e., player is landing on the belt, not walking into it from the side).
-        // Tolerance of 8px handles slight overshoots at variable frame rates.
-        return pb.bottom <= rb.top + 8;
-      },
-      this
-    );
+    this.physics.add.overlap(this.player, this.movers, this.onPlayerHitEnemy, undefined, this);
 
     // Enemy / hazard / gate / checkpoint / item overlaps
     this.physics.add.overlap(this.player, this.enemies, this.onPlayerHitEnemy, undefined, this);
@@ -608,35 +595,12 @@ export class GameScene extends Phaser.Scene {
       }
     });
 
-    // Tick movers (Rollers) and apply conveyor-belt push to the player when standing on one.
+    // Tick movers (Rollers).
     this.movers.getChildren().forEach(child => {
       if (child instanceof Roller) {
         child.update(this.tickCount);
       }
     });
-
-    // Conveyor belt: nudge the player when standing on a moving roller.
-    // Use SET (not ADD) to avoid per-frame velocity accumulation.
-    // Only apply if the player isn't actively pressing a direction — input wins.
-    if (body.blocked.down && !this.puddled) {
-      const noHInput = !this.cursors.left.isDown && !this.cursors.right.isDown;
-      if (noHInput) {
-        for (const child of this.movers.getChildren()) {
-          const roller = child as Roller;
-          const rb = roller.body as Phaser.Physics.Arcade.Body;
-          if (!rb) continue;
-          const onRoller =
-            body.bottom >= rb.top - 2 &&
-            body.bottom <= rb.top + 6 &&
-            body.right > rb.left &&
-            body.left < rb.right;
-          if (onRoller) {
-            this.player.setVelocityX(rb.velocity.x * 0.6);
-            break;
-          }
-        }
-      }
-    }
 
     // Tick each cannon (fires projectiles on interval)
     for (const cannon of this.cannons) {
@@ -723,13 +687,13 @@ export class GameScene extends Phaser.Scene {
   }
 
   private onPlayerHitEnemy(): void {
-    if (!this.invincible && !this.playerDead) {
+    if (!this.invincible && !this.puddled && !this.playerDead) {
       this.triggerDeath();
     }
   }
 
   private onPlayerHitHazard(): void {
-    if (!this.invincible && !this.playerDead) {
+    if (!this.invincible && !this.puddled && !this.playerDead) {
       this.triggerDeath();
     }
   }

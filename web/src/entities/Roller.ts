@@ -33,6 +33,9 @@ export class Roller extends Phaser.Physics.Arcade.Sprite {
     scene.add.existing(this);
     scene.physics.add.existing(this);
 
+    // Rollers float at fixed height — disable gravity (same pattern as SpikeBall).
+    (this.body as Phaser.Physics.Arcade.Body).setAllowGravity(false);
+
     // Do NOT call setCollideWorldBounds here — PhysicsGroup.createCallbackHandler
     // overrides it to false anyway, and we use position-based patrol instead.
 
@@ -85,6 +88,9 @@ export class Roller extends Phaser.Physics.Arcade.Sprite {
 
     const roller = new Roller(scene, cx, cy, facingLeft);
     group.add(roller, true);
+    // PhysicsGroup.createCallbackHandler resets body settings on group.add() —
+    // re-apply gravity disable here (same fix as SpikeBall.ts).
+    (roller.body as Phaser.Physics.Arcade.Body).setAllowGravity(false);
     // NOTE: Do NOT call setImmovable(true) here. Rollers are dynamic bodies that
     // rely on collider(movers, ground) to stay on the platform. Two immovable bodies
     // (roller + static ground) cause Phaser to skip collision resolution, making
