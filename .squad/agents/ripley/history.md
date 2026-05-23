@@ -308,3 +308,33 @@ resistance or always-re-assert velocity instead.
 - `web/src/entities/SpikeBall.ts` — re-apply body settings after group.add()
 - `web/src/scenes/GameScene.ts` — belt-extent computation + setPatrolBounds() call
 
+
+---
+
+## 2026-05-22 — Roller Top-Only Collision (commit f01f3e3)
+
+### Problem
+`physics.add.collider(this.player, this.movers)` created full solid collision — rollers acted as walls blocking the player from entering the belt from the side. This manifested as belts appearing to "move left and right" pushing the player, because the physics engine was resolving lateral overlaps.
+
+### Fix: process-callback collider (GameScene.ts)
+Replaced the simple collider with a process-callback version that only resolves when `player.body.bottom <= roller.body.top + 8`. When the callback returns `false`, the collision is skipped entirely — player passes through the side. When `true` (player approaching from above), collision resolves normally so the player lands on the belt surface.
+
+### Fix: setImmovable after group.add() (Roller.ts)
+Added `(roller.body as Phaser.Physics.Arcade.Body).setImmovable(true)` in `fromTiledObject` after `group.add(roller, true)`. This ensures the Phaser group defaults cannot reset immovability, preventing player weight from nudging rollers sideways via the collider response.
+
+### Key Phaser 3 pattern
+**One-way platform collision via process callback:** `physics.add.collider(a, b, callback, processCallback, context)` — when `processCallback` returns `false`, the collision is completely ignored. Use `body.bottom <= body.top + N` with a small pixel tolerance for reliable one-way platform behaviour at variable frame rates.
+
+### Files changed
+- `web/src/scenes/GameScene.ts` — process-callback collider replacing simple `add.collider`
+- `web/src/entities/Roller.ts` — `setImmovable(true)` re-applied after `group.add()`
+
+### Phaser 3 Pattern: processCallback for one-way platforms
+**Standard pattern for conveyor belts and one-way platforms:**
+```
+physics.add.collider(player, platforms, undefined, (a, b) => {
+  return a.body.bottom <= b.body.top + TOLERANCE;
+}, this);
+```
+When `processCallback` returns `false`, the collision is completely ignored — sprite passes through. When `true`, collision resolves normally. Use `player.body.bottom <= platform.body.top + N` with small pixel tolerance (4–8px) for reliable one-way behaviour. Re-apply `setImmovable(true)` after `group.add()` to prevent player weight from displacing the platform sideways.
+
