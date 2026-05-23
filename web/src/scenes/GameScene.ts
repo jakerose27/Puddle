@@ -326,8 +326,7 @@ export class GameScene extends Phaser.Scene {
       undefined,
       (_player, _roller) => {
         const pb = (this.player.body as Phaser.Physics.Arcade.Body);
-        const rb = (_roller as Phaser.Physics.Arcade.Sprite).body as Phaser.Physics.Arcade.Body;
-        return pb.bottom <= rb.top + 8;
+        return pb.velocity.y >= 0;
       },
       this
     );
