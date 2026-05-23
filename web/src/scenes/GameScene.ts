@@ -561,6 +561,7 @@ export class GameScene extends Phaser.Scene {
         const rb = roller.body as Phaser.Physics.Arcade.Body;
         if (!rb) continue;
         const onRoller =
+          !body.blocked.left && !body.blocked.right &&
           body.bottom >= rb.top - 2 &&
           body.bottom <= rb.top + 6 &&
           body.right > rb.left + 4 &&
