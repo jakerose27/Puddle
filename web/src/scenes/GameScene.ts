@@ -521,11 +521,20 @@ export class GameScene extends Phaser.Scene {
         body.setVelocityY(0); // cancel any residual gravity before physics resolves
         this.player.setVelocityX(0); // frozen (C#: frozen = puddled → no xAccel applied)
       } else if (!this.cursors.down.isDown && this.puddled) {
-        // Exit puddle state
+        // Exit puddle state — save the floor contact Y BEFORE resizing so we can
+        // snap sprite.y back to exactly the right position afterwards.
+        // Without this, tiny drift in body.bottom during puddle state causes the
+        // expanded 30px body to sit slightly inside the platform and tunnel through.
+        const floorContactY = body.bottom;
         this.puddled = false;
         this.player.setScale(1, 1); // restore scale FIRST (displayHeight back to 32px)
         body.setSize(18, 30);
         body.setOffset(7, 1); // restore normal offset for unscaled 32px sprite
+        // Pin sprite.y so body.bottom == floorContactY.
+        // With normal body: body.bottom = player.y - 16 + 1 + 30 = player.y + 15
+        // → player.y = floorContactY - 15
+        this.player.y = floorContactY - 15;
+        body.setVelocityY(0); // cancel accumulated gravity from puddle frames
       }
 
       if (this.puddled) {
@@ -572,24 +581,26 @@ export class GameScene extends Phaser.Scene {
       }
     });
 
-    // Conveyor belt: if the player is resting on a roller, inherit its X velocity.
-    if (body.blocked.down) {
-      let conveyorVx = 0;
-      for (const child of this.movers.getChildren()) {
-        const roller = child as Roller;
-        const rb = roller.body as Phaser.Physics.Arcade.Body;
-        if (!rb) continue;
-        // Player feet must be within the roller's X span and just above its top edge.
-        const onRoller =
-          body.bottom >= rb.top - 2 &&
-          body.bottom <= rb.top + 6 &&
-          body.right > rb.left &&
-          body.left < rb.right;
-        if (onRoller) { conveyorVx = rb.velocity.x; break; }
-      }
-      if (conveyorVx !== 0) {
-        // Apply conveyor push on top of any existing player horizontal input.
-        this.player.setVelocityX(this.player.body!.velocity.x + conveyorVx * 0.5);
+    // Conveyor belt: nudge the player when standing on a moving roller.
+    // Use SET (not ADD) to avoid per-frame velocity accumulation.
+    // Only apply if the player isn't actively pressing a direction — input wins.
+    if (body.blocked.down && !this.puddled) {
+      const noHInput = !this.cursors.left.isDown && !this.cursors.right.isDown;
+      if (noHInput) {
+        for (const child of this.movers.getChildren()) {
+          const roller = child as Roller;
+          const rb = roller.body as Phaser.Physics.Arcade.Body;
+          if (!rb) continue;
+          const onRoller =
+            body.bottom >= rb.top - 2 &&
+            body.bottom <= rb.top + 6 &&
+            body.right > rb.left &&
+            body.left < rb.right;
+          if (onRoller) {
+            this.player.setVelocityX(rb.velocity.x * 0.6);
+            break;
+          }
+        }
       }
     }
 
