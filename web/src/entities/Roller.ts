@@ -10,12 +10,21 @@ const ROLLER_SPEED = 120;
  * C# Roller sets `speed = faceLeft ? -2 : 2` and animates 8 frames at 4-tick
  * intervals. Movement itself is driven by xVel via the C# Sprite base class.
  *
- * Phaser port: dynamic Arcade sprite; wall reversal via body.blocked flags.
+ * Phaser port: dynamic Arcade sprite; position-based patrol reversal.
+ * Patrol bounds (xMin/xMax) are assigned after spawn via setPatrolBounds(),
+ * computed from the full belt extent in GameScene. This avoids relying on
+ * wall-block colliders (which may not exist at belt edges) or world bounds
+ * (which would let rollers drift across the entire level).
+ *
  * Animation uses the 4-frame roller.png spritesheet (128×32).
  */
 export class Roller extends Phaser.Physics.Arcade.Sprite {
   readonly isEnemy: boolean = true;
   private direction: number; // 1 = right, -1 = left
+
+  /** Patrol X bounds (body-center pixels). Set by GameScene after all rollers load. */
+  private xMin: number = 0;
+  private xMax: number = 9999;
 
   constructor(scene: Phaser.Scene, x: number, y: number, facingLeft: boolean) {
     super(scene, x, y, 'roller');
@@ -24,8 +33,8 @@ export class Roller extends Phaser.Physics.Arcade.Sprite {
     scene.add.existing(this);
     scene.physics.add.existing(this);
 
-    const body = this.body as Phaser.Physics.Arcade.Body;
-    body.setCollideWorldBounds(true);
+    // Do NOT call setCollideWorldBounds here — PhysicsGroup.createCallbackHandler
+    // overrides it to false anyway, and we use position-based patrol instead.
 
     // Flip sprite to match initial direction
     this.setFlipX(facingLeft);
@@ -42,6 +51,15 @@ export class Roller extends Phaser.Physics.Arcade.Sprite {
     this.play('roller-roll', true);
 
     this.setVelocityX(ROLLER_SPEED * this.direction);
+  }
+
+  /**
+   * Assigns the horizontal patrol range for this roller (body-center coords).
+   * Called by GameScene after all belt rollers are spawned and their extent is known.
+   */
+  setPatrolBounds(xMin: number, xMax: number): void {
+    this.xMin = xMin;
+    this.xMax = xMax;
   }
 
   /**
@@ -72,19 +90,24 @@ export class Roller extends Phaser.Physics.Arcade.Sprite {
 
   /**
    * Per fixed-tick logic (called from GameScene.fixedUpdate).
-   * Reverses direction when the physics body hits a wall.
+   *
+   * Uses position-based patrol bounds rather than body.blocked flags for
+   * reversal. body.blocked.right never fires when there is no wall block at the
+   * right edge of the belt (which is common in Level1-1). Position checks are
+   * reliable regardless of tile geometry.
+   *
+   * Velocity is re-applied every tick so that any momentary nudge from the
+   * player cannot permanently alter the roller's speed.
    */
   update(_tickCount: number): void {
-    const body = this.body as Phaser.Physics.Arcade.Body;
-
-    if (body.blocked.left && this.direction === -1) {
+    if (this.x <= this.xMin && this.direction === -1) {
       this.direction = 1;
-      this.setVelocityX(ROLLER_SPEED);
       this.setFlipX(false);
-    } else if (body.blocked.right && this.direction === 1) {
+    } else if (this.x >= this.xMax && this.direction === 1) {
       this.direction = -1;
-      this.setVelocityX(-ROLLER_SPEED);
       this.setFlipX(true);
     }
+    // Always re-assert velocity so player nudges don't permanently alter speed.
+    this.setVelocityX(ROLLER_SPEED * this.direction);
   }
 }

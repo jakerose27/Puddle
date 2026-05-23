@@ -45,6 +45,14 @@ export class SpikeBall extends Phaser.Physics.Arcade.Sprite {
 
     const ball = new SpikeBall(scene, cx, cy);
     group.add(ball, true);
+
+    // PhysicsGroup.createCallbackHandler runs on every group.add() call and
+    // re-applies the group's default allowGravity=true, overriding what the
+    // constructor set. Re-apply our static settings after the add.
+    const body = ball.body as Phaser.Physics.Arcade.Body;
+    body.setAllowGravity(false);
+    body.setImmovable(true);
+
     return ball;
   }
 

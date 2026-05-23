@@ -266,6 +266,27 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
+    // Compute and assign patrol bounds for each roller belt.
+    // Belt extent = the span of all rollers at the same Y-row (rounded to tile).
+    // This avoids relying on missing right-side wall blocks for reversal.
+    {
+      const beltMap = new Map<number, Roller[]>();
+      for (const child of this.movers.getChildren()) {
+        if (child instanceof Roller) {
+          const row = Math.round((child as Roller).y / TILE_SIZE);
+          if (!beltMap.has(row)) beltMap.set(row, []);
+          beltMap.get(row)!.push(child as Roller);
+        }
+      }
+      for (const rollers of beltMap.values()) {
+        const xMin = Math.min(...rollers.map(r => r.x));
+        const xMax = Math.max(...rollers.map(r => r.x));
+        for (const roller of rollers) {
+          roller.setPatrolBounds(xMin, xMax);
+        }
+      }
+    }
+
     // Player — spawned at startX/startY from map properties.
     // startY in the TMX is the top of the bottom tile row (the floor).
     // Place the player center one tile above that floor line.
