@@ -85,6 +85,7 @@ export class Roller extends Phaser.Physics.Arcade.Sprite {
 
     const roller = new Roller(scene, cx, cy, facingLeft);
     group.add(roller, true);
+    (roller.body as Phaser.Physics.Arcade.Body).setImmovable(true);
     return roller;
   }
 

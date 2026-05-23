@@ -342,7 +342,20 @@ export class GameScene extends Phaser.Scene {
 
     // Movers (Rollers) stand on ground and push the player via collision — never kill.
     this.physics.add.collider(this.movers, this.ground);
-    this.physics.add.collider(this.player, this.movers);
+    this.physics.add.collider(
+      this.player,
+      this.movers,
+      undefined,
+      (_player, _roller) => {
+        const pb = (this.player.body as Phaser.Physics.Arcade.Body);
+        const rb = (_roller as Phaser.Physics.Arcade.Sprite).body as Phaser.Physics.Arcade.Body;
+        // Only resolve collision when player feet are at or above roller top
+        // (i.e., player is landing on the belt, not walking into it from the side).
+        // Tolerance of 8px handles slight overshoots at variable frame rates.
+        return pb.bottom <= rb.top + 8;
+      },
+      this
+    );
 
     // Enemy / hazard / gate / checkpoint / item overlaps
     this.physics.add.overlap(this.player, this.enemies, this.onPlayerHitEnemy, undefined, this);
