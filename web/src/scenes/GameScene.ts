@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { EntityFactory } from '../entities/EntityFactory';
 import { Block } from '../entities/Block';
 import type { TiledObject } from '../entities/Block';
-import { Roller } from '../entities/Roller';
+import { Roller, BELT_SPEED } from '../entities/Roller';
 import { SpikeBall } from '../entities/SpikeBall';
 import { Checkpoint } from '../entities/Checkpoint';
 import { PowerUp } from '../entities/PowerUp';
@@ -266,27 +266,6 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
-    // Compute and assign patrol bounds for each roller belt.
-    // Belt extent = the span of all rollers at the same Y-row (rounded to tile).
-    // This avoids relying on missing right-side wall blocks for reversal.
-    {
-      const beltMap = new Map<number, Roller[]>();
-      for (const child of this.movers.getChildren()) {
-        if (child instanceof Roller) {
-          const row = Math.round((child as Roller).y / TILE_SIZE);
-          if (!beltMap.has(row)) beltMap.set(row, []);
-          beltMap.get(row)!.push(child as Roller);
-        }
-      }
-      for (const rollers of beltMap.values()) {
-        const xMin = Math.min(...rollers.map(r => r.x));
-        const xMax = Math.max(...rollers.map(r => r.x));
-        for (const roller of rollers) {
-          roller.setPatrolBounds(xMin, xMax);
-        }
-      }
-    }
-
     // Player — spawned at startX/startY from map properties.
     // startY in the TMX is the top of the bottom tile row (the floor).
     // Place the player center one tile above that floor line.
@@ -340,9 +319,19 @@ export class GameScene extends Phaser.Scene {
     // Enemies stand on ground
     this.physics.add.collider(this.enemies, this.ground);
 
-    // Movers (Rollers) stand on ground and kill the player on touch.
+    // Movers (Rollers) stand on ground. Player can land on them from above.
     this.physics.add.collider(this.movers, this.ground);
-    this.physics.add.overlap(this.player, this.movers, this.onPlayerHitEnemy, undefined, this);
+    this.physics.add.collider(
+      this.player,
+      this.movers,
+      undefined,
+      (_player, _roller) => {
+        const pb = (this.player.body as Phaser.Physics.Arcade.Body);
+        const rb = (_roller as Phaser.Physics.Arcade.Sprite).body as Phaser.Physics.Arcade.Body;
+        return pb.bottom <= rb.top + 8;
+      },
+      this
+    );
 
     // Enemy / hazard / gate / checkpoint / item overlaps
     this.physics.add.overlap(this.player, this.enemies, this.onPlayerHitEnemy, undefined, this);
@@ -564,6 +553,26 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
+    // --- Belt push: carry player left/right when standing on a roller ---
+    // Runs AFTER puddle section so it overrides the puddle's setVelocityX(0).
+    // Works even when puddled — belt carries puddled player under spikes.
+    if (body.blocked.down) {
+      for (const child of this.movers.getChildren()) {
+        const roller = child as Roller;
+        const rb = roller.body as Phaser.Physics.Arcade.Body;
+        if (!rb) continue;
+        const onRoller =
+          body.bottom >= rb.top - 2 &&
+          body.bottom <= rb.top + 6 &&
+          body.right > rb.left &&
+          body.left < rb.right;
+        if (onRoller) {
+          this.player.setVelocityX(roller.facingLeft ? -BELT_SPEED : BELT_SPEED);
+          break;
+        }
+      }
+    }
+
     // --- Shoot ability (C#: D key, no powerup required — gated by hydration in C#) ---
     // Web port: fires once per press with a cooldown. Projectile travels in facing direction.
     if (
@@ -687,13 +696,13 @@ export class GameScene extends Phaser.Scene {
   }
 
   private onPlayerHitEnemy(): void {
-    if (!this.invincible && !this.puddled && !this.playerDead) {
+    if (!this.invincible && !this.playerDead) {
       this.triggerDeath();
     }
   }
 
   private onPlayerHitHazard(): void {
-    if (!this.invincible && !this.puddled && !this.playerDead) {
+    if (!this.invincible && !this.playerDead) {
       this.triggerDeath();
     }
   }

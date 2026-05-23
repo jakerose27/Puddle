@@ -1,45 +1,30 @@
 import Phaser from 'phaser';
 import type { TiledObject } from './Block';
 
-// C# Roller used speed=2px/tick at 60Hz ≈ 120 px/s in Phaser world units.
-const ROLLER_SPEED = 120;
+/** Belt carry speed (px/s) — used by GameScene to push the player. */
+export const BELT_SPEED = 80;
 
 /**
- * Roller — horizontal-patrol enemy ported from C# Puddle.Roller.
+ * Roller — stationary belt surface in Level 1-1.
  *
- * C# Roller sets `speed = faceLeft ? -2 : 2` and animates 8 frames at 4-tick
- * intervals. Movement itself is driven by xVel via the C# Sprite base class.
- *
- * Phaser port: dynamic Arcade sprite; position-based patrol reversal.
- * Patrol bounds (xMin/xMax) are assigned after spawn via setPatrolBounds(),
- * computed from the full belt extent in GameScene. This avoids relying on
- * wall-block colliders (which may not exist at belt edges) or world bounds
- * (which would let rollers drift across the entire level).
+ * Rollers do NOT patrol. They sit on the floor (gravity enabled) and serve as
+ * the physical surface of the conveyor belt. GameScene reads `facingLeft` to
+ * determine which direction to push the player while they stand on a roller.
  *
  * Animation uses the 4-frame roller.png spritesheet (128×32).
  */
 export class Roller extends Phaser.Physics.Arcade.Sprite {
   readonly isEnemy: boolean = true;
-  private direction: number; // 1 = right, -1 = left
-
-  /** Patrol X bounds (body-center pixels). Set by GameScene after all rollers load. */
-  private xMin: number = 0;
-  private xMax: number = 9999;
+  public readonly facingLeft: boolean;
 
   constructor(scene: Phaser.Scene, x: number, y: number, facingLeft: boolean) {
     super(scene, x, y, 'roller');
-    this.direction = facingLeft ? -1 : 1;
+    this.facingLeft = facingLeft;
 
     scene.add.existing(this);
     scene.physics.add.existing(this);
 
-    // Rollers float at fixed height — disable gravity (same pattern as SpikeBall).
-    (this.body as Phaser.Physics.Arcade.Body).setAllowGravity(false);
-
-    // Do NOT call setCollideWorldBounds here — PhysicsGroup.createCallbackHandler
-    // overrides it to false anyway, and we use position-based patrol instead.
-
-    // Flip sprite to match initial direction
+    // Flip sprite to match belt direction (visual only)
     this.setFlipX(facingLeft);
 
     // Ensure animation exists (safe to call multiple times — Phaser guards duplicates)
@@ -52,17 +37,6 @@ export class Roller extends Phaser.Physics.Arcade.Sprite {
       });
     }
     this.play('roller-roll', true);
-
-    this.setVelocityX(ROLLER_SPEED * this.direction);
-  }
-
-  /**
-   * Assigns the horizontal patrol range for this roller (body-center coords).
-   * Called by GameScene after all belt rollers are spawned and their extent is known.
-   */
-  setPatrolBounds(xMin: number, xMax: number): void {
-    this.xMin = xMin;
-    this.xMax = xMax;
   }
 
   /**
@@ -88,36 +62,11 @@ export class Roller extends Phaser.Physics.Arcade.Sprite {
 
     const roller = new Roller(scene, cx, cy, facingLeft);
     group.add(roller, true);
-    // PhysicsGroup.createCallbackHandler resets body settings on group.add() —
-    // re-apply gravity disable here (same fix as SpikeBall.ts).
-    (roller.body as Phaser.Physics.Arcade.Body).setAllowGravity(false);
-    // NOTE: Do NOT call setImmovable(true) here. Rollers are dynamic bodies that
-    // rely on collider(movers, ground) to stay on the platform. Two immovable bodies
-    // (roller + static ground) cause Phaser to skip collision resolution, making
-    // rollers fall through. Velocity re-assertion in update() prevents player nudges.
     return roller;
   }
 
-  /**
-   * Per fixed-tick logic (called from GameScene.fixedUpdate).
-   *
-   * Uses position-based patrol bounds rather than body.blocked flags for
-   * reversal. body.blocked.right never fires when there is no wall block at the
-   * right edge of the belt (which is common in Level1-1). Position checks are
-   * reliable regardless of tile geometry.
-   *
-   * Velocity is re-applied every tick so that any momentary nudge from the
-   * player cannot permanently alter the roller's speed.
-   */
+  /** No per-tick logic — rollers are stationary. */
   update(_tickCount: number): void {
-    if (this.x <= this.xMin && this.direction === -1) {
-      this.direction = 1;
-      this.setFlipX(false);
-    } else if (this.x >= this.xMax && this.direction === 1) {
-      this.direction = -1;
-      this.setFlipX(true);
-    }
-    // Always re-assert velocity so player nudges don't permanently alter speed.
-    this.setVelocityX(ROLLER_SPEED * this.direction);
+    // no-op
   }
 }
