@@ -26,6 +26,7 @@ export class Roller extends Phaser.Physics.Arcade.Sprite {
 
     // Flip sprite to match belt direction (visual only)
     this.setFlipX(facingLeft);
+    this.setDepth(1);
 
     // Ensure animation exists (safe to call multiple times — Phaser guards duplicates)
     if (!scene.anims.exists('roller-roll')) {
