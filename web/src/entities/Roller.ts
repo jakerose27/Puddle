@@ -56,9 +56,11 @@ export class Roller extends Phaser.Physics.Arcade.Sprite {
     const w = obj.width || 32;
     const h = obj.height || 32;
     const cx = obj.x + w / 2;
-    // Spawn at resting floor position with no gravity.
-    // Tiled tile-object y = bottom edge; settled center = y + h/2.
-    const cy = obj.y + h / 2;
+    // Physics body: use the "wrong" floor-level center so belt mechanics and
+    // spike clearance remain exactly as tuned (player.body.bottom=352 on the belt).
+    // Tiled tile-object y = bottom edge; using y + h/2 intentionally places the body
+    // at floor level, matching Block.ts tile-object formula for the blocks beneath.
+    const cy = obj.y + h / 2; // physics center (body at 352-384 for belt 2 rollers)
 
     const facingLeft =
       obj.properties?.some(p => p.name === 'left' && String(p.value) === 'True') ?? false;
@@ -69,6 +71,12 @@ export class Roller extends Phaser.Physics.Arcade.Sprite {
     const body = roller.body as Phaser.Physics.Arcade.Body;
     body.setAllowGravity(false);
     body.setImmovable(true);
+
+    // Visually shift the sprite UP by one tile so it appears ON TOP of the floor
+    // rather than merged with it. The body offset compensates so physics is unchanged.
+    roller.setY(cy - h);       // sprite center: one tile above physics center
+    body.setOffset(0, h);      // push body back down: body.top = (cy-h-h/2)+h = cy-h/2 ✓
+
     return roller;
   }
 
