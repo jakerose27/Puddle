@@ -56,7 +56,7 @@ export class Roller extends Phaser.Physics.Arcade.Sprite {
     const w = obj.width || 32;
     const h = obj.height || 32;
     const cx = obj.x + w / 2;
-    // cy places sprite center at floor level; body.top = cy - h/2, body.bottom = cy + h/2
+    // "Wrong" formula: cy = obj.y + h/2 places body at floor level (body.top = obj.y). Sprite is shifted up separately via setY.
     const cy = obj.y + h / 2; // physics center (body at 352-384 for belt 2 rollers)
 
     const facingLeft =
@@ -68,6 +68,14 @@ export class Roller extends Phaser.Physics.Arcade.Sprite {
     const body = roller.body as Phaser.Physics.Arcade.Body;
     body.setAllowGravity(false);
     body.setImmovable(true);
+    // Visually shift the sprite UP by one tile so it appears on top of the floor
+    // rather than merged with it. The body offset compensates so physics is unchanged.
+    // Tiled tile-object y = bottom edge (y=96 for belt 1). Visual tile renders y=64-96.
+    // Physics body needs to be at y=96-128 (on floor). cy = obj.y + h/2 = 112 achieves
+    // body.top=96. But sprite at cy=112 would render y=96-128 (inside floor). setY(cy-h)
+    // moves sprite to y=64-96 (matching Tiled visual). setOffset(0,h) keeps body at y=96-128.
+    roller.setY(cy - h);       // sprite center at y=80 → renders y=64-96 (above floor)
+    body.setOffset(0, h);      // body back to y=96-128: body.top = (80-16+32)=96 ✓
 
     return roller;
   }
