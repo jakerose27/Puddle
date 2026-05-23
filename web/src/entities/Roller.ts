@@ -68,14 +68,16 @@ export class Roller extends Phaser.Physics.Arcade.Sprite {
     const body = roller.body as Phaser.Physics.Arcade.Body;
     body.setAllowGravity(false);
     body.setImmovable(true);
-    // Visually shift the sprite UP by one tile so it appears on top of the floor
-    // rather than merged with it. The body offset compensates so physics is unchanged.
-    // Tiled tile-object y = bottom edge (y=96 for belt 1). Visual tile renders y=64-96.
-    // Physics body needs to be at y=96-128 (on floor). cy = obj.y + h/2 = 112 achieves
-    // body.top=96. But sprite at cy=112 would render y=96-128 (inside floor). setY(cy-h)
-    // moves sprite to y=64-96 (matching Tiled visual). setOffset(0,h) keeps body at y=96-128.
-    roller.setY(cy - h);       // sprite center at y=80 → renders y=64-96 (above floor)
-    body.setOffset(0, h);      // body back to y=96-128: body.top = (80-16+32)=96 ✓
+    // roller.png has 12px of transparent padding at the bottom of its 32px frame.
+    // The visible belt content spans rows 12-19 (8px tall, centered).
+    // We need visual content bottom = floor top (y=96 for belt 1).
+    //   visual_bottom = sprite.y + h/2 - bottomPad = sprite.y + 4
+    //   => sprite.y = floor_top - 4 = 92 (for belt 1 where cy=112, h=32)
+    // Expressed relative to cy: setY(cy - h + bottomPad) = setY(112 - 32 + 12) = setY(92)
+    // body.setOffset(0, h - bottomPad) keeps body.top at 96 (physics unchanged).
+    const bottomPad = 12; // transparent pixels at bottom of roller.png
+    roller.setY(cy - h + bottomPad);       // sprite center y=92 → visual bottom at y=96
+    body.setOffset(0, h - bottomPad);      // body.top = 92 - 16 + 20 = 96 ✓
 
     return roller;
   }
