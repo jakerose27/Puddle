@@ -563,8 +563,8 @@ export class GameScene extends Phaser.Scene {
         const onRoller =
           body.bottom >= rb.top - 2 &&
           body.bottom <= rb.top + 6 &&
-          body.right > rb.left &&
-          body.left < rb.right;
+          body.right > rb.left + 4 &&
+          body.left < rb.right - 4;
         if (onRoller) {
           this.player.setVelocityX(roller.facingLeft ? -BELT_SPEED : BELT_SPEED);
           break;
