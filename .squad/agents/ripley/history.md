@@ -261,3 +261,50 @@ All others were already registered (implemented or stubbed from Level1-2).
 - **Audio pattern established**: Web Audio API integration, browser autoplay-safe (click-to-start)
 - **Location reference**: Web assets will be placed in web/public/assets/audio/
 - **Next**: Entity integration (Cannon fire sound, Player jump, etc.)
+
+---
+
+## 2026-05-22 — Roller Drift + SpikeBall Fall Fixes (commit 810fa7a)
+
+### Root Cause: PhysicsGroup.createCallbackHandler overrides body settings
+
+Discovered that `Phaser.Physics.Arcade.Group.add(child)` calls
+`Group.createCallbackHandler(child)` for EVERY child added, not just
+newly-created ones. That handler iterates `this.defaults` (including
+`setAllowGravity: true` and `setCollideWorldBounds: false`) and applies them
+via `body[key](value)`. This silently overrides any body settings applied in
+an entity's constructor before `group.add()` is called.
+
+**Bug 2 (SpikeBalls falling):** `SpikeBall.fromTiledObject` calls `group.add(ball, true)`,
+which resets `allowGravity` to `true` — overriding `body.setAllowGravity(false)` set in the
+constructor. Fix: re-apply `setAllowGravity(false)` + `setImmovable(true)` in
+`fromTiledObject` AFTER the `group.add()` call.
+
+**Bug 1 (Roller drift):** `setCollideWorldBounds(true)` in the Roller constructor was
+being silently reset to `false` by the same mechanism, so world-bounds reversal was never
+active. Additionally, Level1-1 has NO right-side wall blocks at the roller belt edges, so
+`body.blocked.right` never fired. Fix:
+- Remove `setCollideWorldBounds(true)` (it didn't work anyway)
+- Add `xMin`/`xMax` patrol fields + `setPatrolBounds()` on Roller
+- `update()` uses position checks; velocity re-applied every tick so player nudges
+  cannot permanently alter roller speed
+- GameScene computes belt extent from the movers group after all entities load
+
+### Key Phaser 3 pattern learned
+
+**`Group.add()` overrides body settings set in constructor.** 
+`Phaser.Physics.Arcade.Group.add(child)` calls `createCallbackHandler(child)` which applies
+all values in `this.defaults` (including `setAllowGravity: true`, `setCollideWorldBounds: false`)
+by invoking `body[key](value)` on the added sprite. Any body settings applied before `group.add()`
+are silently overridden. **Always re-apply non-default body properties AFTER `group.add()`.**
+
+**`setImmovable(true)` on a dynamic body breaks ground collisions.** `StaticBody.immovable`
+is `true` by default. `SeparateY` skips separation when BOTH bodies are immovable. If a
+dynamic entity needs to sit on a static floor AND be immovable to players, use mass-based
+resistance or always-re-assert velocity instead.
+
+### Files changed
+- `web/src/entities/Roller.ts` — position-based patrol, velocity re-asserted each tick
+- `web/src/entities/SpikeBall.ts` — re-apply body settings after group.add()
+- `web/src/scenes/GameScene.ts` — belt-extent computation + setPatrolBounds() call
+

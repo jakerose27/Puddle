@@ -249,3 +249,48 @@ Roller's constructor calls `scene.anims.create({ key: 'roller-roll', ... })` gua
 ## Open question for Dallas/team
 
 The `Puddle.SpikeBall` type (17 objects in the Enemies layer, gid=312) and `Puddle.Checkpoint` (1 object in Items) are the next blocking entity types for Level 1 playability. SpikeBall likely kills the player on contact (same as Roller); Checkpoint saves spawn position. Should these be ported in the same pattern (dynamic group + overlap kill), or does Ripley's upcoming death system gate that work?
+
+---
+
+## 2026-05-22 — Roller Patrol + SpikeBall Gravity Fix
+
+**Date:** 2026-05-22  
+**Author:** Ripley (Engine Dev)  
+**Commit:** 810fa7a  
+
+### Problem
+
+Two runtime bugs observed in Level1-1:
+
+1. **Rollers drift out of their belt area** — conveyor belts don't stay on their platform and eventually leave the screen.
+2. **SpikeBalls fall through the floor on level load** — some spike hazards appear to drop when the level first renders.
+
+### Root Cause
+
+Both bugs share the same underlying mechanism: **`Phaser.Physics.Arcade.Group.add(child)` calls `createCallbackHandler(child)` for every child added, including sprites with pre-existing physics bodies.** The handler iterates `this.defaults` and applies each default by calling `body[key](value)`. Default values include:
+
+- `setAllowGravity: true`
+- `setCollideWorldBounds: false`
+
+Any body settings applied in an entity constructor before `group.add()` are silently overridden.
+
+**SpikeBall:** Constructor called `body.setAllowGravity(false)`, then `fromTiledObject` called `group.add(ball, true)`, which reset `allowGravity` to `true` → spikeballs fell under gravity y=1260.
+
+**Roller:** Constructor called `body.setCollideWorldBounds(true)` → group reset it to `false` → world-bounds reversal was never active. Additionally, Level1-1 has no right-side wall blocks at belt edges, so `body.blocked.right` never fired → rollers drifted indefinitely to the right.
+
+### Decision
+
+#### SpikeBalls
+Re-apply `setAllowGravity(false)` + `setImmovable(true)` in `SpikeBall.fromTiledObject` **after** `group.add()`. This pattern must be used for any future static/gravity-exempt entity added to a dynamic `Phaser.Physics.Arcade.Group`.
+
+#### Rollers
+1. Remove `setCollideWorldBounds(true)` — it was being silently overridden.
+2. Add `xMin`/`xMax` patrol bounds to each Roller, set by GameScene after all belt members load.
+3. `update()` uses position-based reversal (not `body.blocked` flags) and re-asserts velocity every tick to resist player nudges.
+
+#### Rejected: `setImmovable(true)` for Rollers
+`StaticBody.immovable = true` by default. `SeparateY` skips separation when both bodies are immovable. If rollers were marked immovable, the `collider(movers, ground)` would fail to keep them on the platform → rollers fall through. Use always-re-assert velocity pattern instead.
+
+### Impact
+
+Applies to all levels. Any entity using a `Phaser.Physics.Arcade.Group` (enemies, movers) that sets gravity-off or other non-default body properties **must re-apply those settings after `group.add()`**.
