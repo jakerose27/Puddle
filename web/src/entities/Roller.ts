@@ -68,16 +68,13 @@ export class Roller extends Phaser.Physics.Arcade.Sprite {
     const body = roller.body as Phaser.Physics.Arcade.Body;
     body.setAllowGravity(false);
     body.setImmovable(true);
-    // roller.png has 12px of transparent padding at the bottom of its 32px frame.
-    // The visible belt content spans rows 12-19 (8px tall, centered).
-    // We need visual content bottom = floor top (y=96 for belt 1).
-    //   visual_bottom = sprite.y + h/2 - bottomPad = sprite.y + 4
-    //   => sprite.y = floor_top - 4 = 92 (for belt 1 where cy=112, h=32)
-    // Expressed relative to cy: setY(cy - h + bottomPad) = setY(112 - 32 + 12) = setY(92)
-    // body.setOffset(0, h - bottomPad) keeps body.top at 96 (physics unchanged).
-    const bottomPad = 12; // transparent pixels at bottom of roller.png
-    roller.setY(cy - h + bottomPad);       // sprite center y=92 → visual bottom at y=96
-    body.setOffset(0, h - bottomPad);      // body.top = 92 - 16 + 20 = 96 ✓
+    // roller.png: 12px transparent top (rows 0-11), 8px visible (rows 12-19), 12px transparent bottom (rows 20-31).
+    // sprite.y = cy - h + bottomPad = 92 (for belt 1) → visual content at y=88-96.
+    // body.setOffset(0, topPad) → body.top = sprite.y - h/2 + topPad = 92 - 16 + 12 = 88 (matches visual top).
+    const topPad = 12;    // transparent rows at top of roller.png
+    const bottomPad = 12; // transparent rows at bottom of roller.png
+    roller.setY(cy - h + bottomPad);  // sprite center y=92 → visual content at y=88-96
+    body.setOffset(0, topPad);        // body.top = 88 (visual top) ✓
 
     return roller;
   }
