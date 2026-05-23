@@ -18,6 +18,8 @@ import type { GameScene } from '../scenes/GameScene';
 export interface EntityGroups {
   ground: Phaser.Physics.Arcade.StaticGroup;
   enemies?: Phaser.Physics.Arcade.Group;
+  /** Conveyor-belt roller platforms — player can stand on them, they push horizontally. */
+  movers?: Phaser.Physics.Arcade.Group;
   hazards?: Phaser.Physics.Arcade.StaticGroup;
   geysers?: Phaser.Physics.Arcade.StaticGroup;
   gates?: Phaser.Physics.Arcade.StaticGroup;
@@ -41,8 +43,11 @@ type EntityCreator = (
 const REGISTRY: Record<string, EntityCreator> = {
   'Puddle.Block': (scene, obj, groups) => Block.fromTiledObject(scene, obj, groups.ground),
   'Puddle.Roller': (scene, obj, groups) => {
-    if (!groups.enemies) return null;
-    return Roller.fromTiledObject(scene, obj, groups.enemies);
+    // Rollers are conveyor platforms, not enemies — route to movers so they push
+    // the player horizontally rather than killing on contact.
+    const target = groups.movers ?? groups.enemies;
+    if (!target) return null;
+    return Roller.fromTiledObject(scene, obj, target);
   },
   'Puddle.Geyser': (scene, obj, groups) => {
     if (!groups.geysers) return null;

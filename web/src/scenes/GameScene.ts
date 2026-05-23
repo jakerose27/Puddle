@@ -28,6 +28,8 @@ export class GameScene extends Phaser.Scene {
   private player!: Phaser.Physics.Arcade.Sprite;
   public ground!: Phaser.Physics.Arcade.StaticGroup;
   private enemies!: Phaser.Physics.Arcade.Group;
+  /** Conveyor-belt rollers — player collides (doesn't die) and is pushed horizontally. */
+  private movers!: Phaser.Physics.Arcade.Group;
   private hazards!: Phaser.Physics.Arcade.StaticGroup;
   private geysers!: Phaser.Physics.Arcade.StaticGroup;
   private gates!: Phaser.Physics.Arcade.StaticGroup;
@@ -226,6 +228,7 @@ export class GameScene extends Phaser.Scene {
 
     // Dynamic groups for enemies and hazards.
     this.enemies = this.physics.add.group();
+    this.movers = this.physics.add.group();
     this.hazards = this.physics.add.staticGroup();
     this.geysers = this.physics.add.staticGroup();
     this.gates = this.physics.add.staticGroup();
@@ -240,6 +243,7 @@ export class GameScene extends Phaser.Scene {
         const entity = EntityFactory.create(this, obj, {
           ground: this.ground,
           enemies: this.enemies,
+          movers: this.movers,
           hazards: this.hazards,
           geysers: this.geysers,
           gates: this.gates,
@@ -314,6 +318,10 @@ export class GameScene extends Phaser.Scene {
 
     // Enemies stand on ground
     this.physics.add.collider(this.enemies, this.ground);
+
+    // Movers (Rollers) stand on ground and push the player via collision — never kill.
+    this.physics.add.collider(this.movers, this.ground);
+    this.physics.add.collider(this.player, this.movers);
 
     // Enemy / hazard / gate / checkpoint / item overlaps
     this.physics.add.overlap(this.player, this.enemies, this.onPlayerHitEnemy, undefined, this);
@@ -502,19 +510,22 @@ export class GameScene extends Phaser.Scene {
       if (this.cursors.down.isDown && onGround && !this.puddled) {
         // Enter puddle state
         this.puddled = true;
-        // Anchor the body's BOTTOM edge so the player doesn't fall through the floor.
-        // Normal body: size 18×30, offsetY=1 → bottom at sprite+31.
-        // Puddle body: size 18×8, offsetY=23 → bottom still at sprite+31.
+        // Scale FIRST — setSize uses displayHeight to auto-center, so the scale
+        // must be applied before setSize/setOffset or the offset calc is wrong.
+        this.player.setScale(1, 0.27); // visual squish (displayHeight = 32*0.27 ≈ 8.6px)
         body.setSize(18, 8);
-        body.setOffset(7, 23);
-        this.player.setScale(1, 0.27); // visual squish
+        // Keep body bottom anchored at the same floor contact point:
+        //   body.bottom = sprite.y - displayOriginY + offsetY + bodyH = sprite.y + 15
+        //   displayOriginY = 32 * 0.5 * 0.27 = 4.32  →  offsetY ≈ 11
+        body.setOffset(7, 11);
+        body.setVelocityY(0); // cancel any residual gravity before physics resolves
         this.player.setVelocityX(0); // frozen (C#: frozen = puddled → no xAccel applied)
       } else if (!this.cursors.down.isDown && this.puddled) {
         // Exit puddle state
         this.puddled = false;
+        this.player.setScale(1, 1); // restore scale FIRST (displayHeight back to 32px)
         body.setSize(18, 30);
-        body.setOffset(7, 1); // restore normal offset
-        this.player.setScale(1, 1);
+        body.setOffset(7, 1); // restore normal offset for unscaled 32px sprite
       }
 
       if (this.puddled) {
@@ -544,7 +555,6 @@ export class GameScene extends Phaser.Scene {
     // Tick each enemy that has per-tick logic
     this.enemies.getChildren().forEach(child => {
       if (
-        child instanceof Roller ||
         child instanceof SpikeBall ||
         child instanceof Bird ||
         child instanceof Rat ||
@@ -554,6 +564,34 @@ export class GameScene extends Phaser.Scene {
         child.update(this.tickCount);
       }
     });
+
+    // Tick movers (Rollers) and apply conveyor-belt push to the player when standing on one.
+    this.movers.getChildren().forEach(child => {
+      if (child instanceof Roller) {
+        child.update(this.tickCount);
+      }
+    });
+
+    // Conveyor belt: if the player is resting on a roller, inherit its X velocity.
+    if (body.blocked.down) {
+      let conveyorVx = 0;
+      for (const child of this.movers.getChildren()) {
+        const roller = child as Roller;
+        const rb = roller.body as Phaser.Physics.Arcade.Body;
+        if (!rb) continue;
+        // Player feet must be within the roller's X span and just above its top edge.
+        const onRoller =
+          body.bottom >= rb.top - 2 &&
+          body.bottom <= rb.top + 6 &&
+          body.right > rb.left &&
+          body.left < rb.right;
+        if (onRoller) { conveyorVx = rb.velocity.x; break; }
+      }
+      if (conveyorVx !== 0) {
+        // Apply conveyor push on top of any existing player horizontal input.
+        this.player.setVelocityX(this.player.body!.velocity.x + conveyorVx * 0.5);
+      }
+    }
 
     // Tick each cannon (fires projectiles on interval)
     for (const cannon of this.cannons) {
