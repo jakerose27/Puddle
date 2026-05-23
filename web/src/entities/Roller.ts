@@ -55,13 +55,19 @@ export class Roller extends Phaser.Physics.Arcade.Sprite {
     const w = obj.width || 32;
     const h = obj.height || 32;
     const cx = obj.x + w / 2;
-    const cy = obj.y - h / 2; // tile object: y = bottom edge
+    // Spawn at resting floor position with no gravity.
+    // Tiled tile-object y = bottom edge; settled center = y + h/2.
+    const cy = obj.y + h / 2;
 
     const facingLeft =
       obj.properties?.some(p => p.name === 'left' && String(p.value) === 'True') ?? false;
 
     const roller = new Roller(scene, cx, cy, facingLeft);
     group.add(roller, true);
+    // Re-apply after group.add() overrides — rollers are fixed, never move
+    const body = roller.body as Phaser.Physics.Arcade.Body;
+    body.setAllowGravity(false);
+    body.setImmovable(true);
     return roller;
   }
 

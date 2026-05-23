@@ -319,8 +319,7 @@ export class GameScene extends Phaser.Scene {
     // Enemies stand on ground
     this.physics.add.collider(this.enemies, this.ground);
 
-    // Movers (Rollers) stand on ground. Player can land on them from above.
-    this.physics.add.collider(this.movers, this.ground);
+    // Rollers have no gravity — no floor collider needed. Player can land on them from above.
     this.physics.add.collider(
       this.player,
       this.movers,
