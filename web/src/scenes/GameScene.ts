@@ -516,16 +516,17 @@ export class GameScene extends Phaser.Scene {
     // Exiting puddle: Down released.
     if (this.playerPowerups.puddle) {
       if (this.cursors.down.isDown && onGround && !this.puddled) {
-        // Enter puddle state
+        // Enter puddle state — save floor contact BEFORE any resize.
+        const floorContactY = body.bottom;
         this.puddled = true;
-        // Scale FIRST — setSize uses displayHeight to auto-center, so the scale
-        // must be applied before setSize/setOffset or the offset calc is wrong.
-        this.player.setScale(1, 0.27); // visual squish (displayHeight = 32*0.27 ≈ 8.6px)
+        this.player.setScale(1, 0.27); // squish sprite (displayHeight → 8.64 px)
         body.setSize(18, 8);
-        // Keep body bottom anchored at the same floor contact point:
-        //   body.bottom = sprite.y - displayOriginY + offsetY + bodyH = sprite.y + 15
-        //   displayOriginY = 32 * 0.5 * 0.27 = 4.32  →  offsetY ≈ 11
-        body.setOffset(7, 11);
+        body.setOffset(7, 1);
+        // Pin sprite.y so puddle's visual bottom stays flush with the floor.
+        // After scale: displayHeight/2 = 4.32
+        // body.bottom = player.y - 4.32 + offset.y + 8 = player.y + 4.68 = floorContactY
+        // → player.y = floorContactY - 4.68
+        this.player.y = floorContactY - 4.68;
         body.setVelocityY(0); // cancel any residual gravity before physics resolves
         this.player.setVelocityX(0); // frozen (C#: frozen = puddled → no xAccel applied)
       } else if (!this.cursors.down.isDown && this.puddled) {
