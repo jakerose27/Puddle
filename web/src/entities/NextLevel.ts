@@ -11,8 +11,8 @@ const CHECKER_CELL = 16; // px — size of each checker square
  *
  * Web port: static overlap zone. Player contact → GameScene shows "LEVEL COMPLETE".
  *
- * Visual: white/black checkerboard strip from the left wall (x=0) to the gate's
- * left edge, same height as the gate zone. Physics trigger stays at the gate zone.
+ * Visual: white/black checkerboard strip covering the gate zone itself (x=gateLeft, width=w),
+ * same height as the gate zone. Physics trigger stays at the gate zone.
  *
  * Note: NextLevel objects in Tiled are regular rectangles (no gid), so Tiled y
  * is the top-left corner. Center = (x + w/2, y + h/2).
@@ -34,18 +34,17 @@ export class NextLevel {
     this.gameObject = scene.add.rectangle(cx, cy, w, h, 0x000000, 0);
     scene.physics.add.existing(this.gameObject, true /* static */);
 
-    // Visual: checkerboard from x=0 to gate's left edge, same height as gate
+    // Visual: checkerboard covering the gate zone only (x=gateLeft, width=w)
     const gateLeft = cx - w / 2;
     const gateTop = cy - h / 2;
-    const visW = gateLeft; // fill from left wall to the gate
-    const cols = Math.ceil(visW / CHECKER_CELL);
+    const cols = Math.ceil(w / CHECKER_CELL);
     const rows = Math.ceil(h / CHECKER_CELL);
     const gfx = scene.add.graphics();
     for (let row = 0; row < rows; row++) {
       for (let col = 0; col < cols; col++) {
         const color = (row + col) % 2 === 0 ? 0xffffff : 0x000000;
         gfx.fillStyle(color, 1);
-        gfx.fillRect(col * CHECKER_CELL, gateTop + row * CHECKER_CELL, CHECKER_CELL, CHECKER_CELL);
+        gfx.fillRect(gateLeft + col * CHECKER_CELL, gateTop + row * CHECKER_CELL, CHECKER_CELL, CHECKER_CELL);
       }
     }
   }

@@ -516,34 +516,18 @@ export class GameScene extends Phaser.Scene {
     // Exiting puddle: Down released.
     if (this.playerPowerups.puddle) {
       if (this.cursors.down.isDown && onGround && !this.puddled) {
-        // Enter puddle state — save floor contact BEFORE any resize.
-        const floorContactY = body.bottom;
+        // Enter puddle state
         this.puddled = true;
-        this.player.setScale(1, 0.27); // squish sprite (displayHeight → 8.64 px)
         body.setSize(18, 8);
-        body.setOffset(7, 1);
-        // Pin sprite.y so puddle's visual bottom stays flush with the floor.
-        // After scale: displayHeight/2 = 4.32
-        // body.bottom = player.y - 4.32 + offset.y + 8 = player.y + 4.68 = floorContactY
-        // → player.y = floorContactY - 4.68
-        this.player.y = floorContactY - 4.68;
-        body.setVelocityY(0); // cancel any residual gravity before physics resolves
+        body.setOffset(7, 11);
+        body.setVelocityY(0);
         this.player.setVelocityX(0); // frozen (C#: frozen = puddled → no xAccel applied)
       } else if (!this.cursors.down.isDown && this.puddled) {
-        // Exit puddle state — save the floor contact Y BEFORE resizing so we can
-        // snap sprite.y back to exactly the right position afterwards.
-        // Without this, tiny drift in body.bottom during puddle state causes the
-        // expanded 30px body to sit slightly inside the platform and tunnel through.
-        const floorContactY = body.bottom;
+        // Exit puddle state
         this.puddled = false;
-        this.player.setScale(1, 1); // restore scale FIRST (displayHeight back to 32px)
         body.setSize(18, 30);
-        body.setOffset(7, 1); // restore normal offset for unscaled 32px sprite
-        // Pin sprite.y so body.bottom == floorContactY.
-        // With normal body: body.bottom = player.y - 16 + 1 + 30 = player.y + 15
-        // → player.y = floorContactY - 15
-        this.player.y = floorContactY - 15;
-        body.setVelocityY(0); // cancel accumulated gravity from puddle frames
+        body.setOffset(7, 1);
+        body.setVelocityY(0);
       }
 
       if (this.puddled) {
@@ -746,7 +730,7 @@ export class GameScene extends Phaser.Scene {
     if (this.puddled) {
       this.puddled = false;
       body.setSize(18, 30);
-      this.player.setScale(1, 1);
+      body.setOffset(7, 1);
     }
     // Decrement lives and update HUD
     this.lives = Math.max(0, this.lives - 1);
