@@ -161,6 +161,10 @@ export class GameScene extends Phaser.Scene {
       frameWidth: TILE_SIZE,
       frameHeight: TILE_SIZE,
     });
+    this.load.spritesheet('player-puddle', 'assets/images/PC/puddle.png', {
+      frameWidth: TILE_SIZE,
+      frameHeight: TILE_SIZE,
+    });
 
     // Entity sprites
     this.load.spritesheet('roller', 'assets/images/roller.png', {
@@ -303,6 +307,14 @@ export class GameScene extends Phaser.Scene {
       frames: this.anims.generateFrameNumbers('player-jump', { start: 0, end: 2 }),
       frameRate: 8,
       repeat: 0,
+    });
+
+    // Puddle — 6 frames, loops while player is flattened
+    this.anims.create({
+      key: 'puddle',
+      frames: this.anims.generateFrameNumbers('player-puddle', { start: 0, end: 5 }),
+      frameRate: 8,
+      repeat: -1,
     });
 
     // Checkpoint flag animation — plays through all 8 frames on activation
@@ -481,8 +493,10 @@ export class GameScene extends Phaser.Scene {
       this.player.setVelocityX(0);
     }
 
-    // Animation state machine — airborne > walking > idle
-    if (!onGround) {
+    // Animation state machine — puddle > airborne > walking > idle
+    if (this.puddled) {
+      this.player.play('puddle', true);
+    } else if (!onGround) {
       this.player.play('jump', true);
     } else if (this.cursors.left.isDown || this.cursors.right.isDown) {
       this.player.play('walk', true);
@@ -519,7 +533,7 @@ export class GameScene extends Phaser.Scene {
         // Enter puddle state
         this.puddled = true;
         body.setSize(18, 8);
-        body.setOffset(7, 11);
+        body.setOffset(7, 23);
         body.setVelocityY(0);
         this.player.setVelocityX(0); // frozen (C#: frozen = puddled → no xAccel applied)
       } else if (!this.cursors.down.isDown && this.puddled) {
